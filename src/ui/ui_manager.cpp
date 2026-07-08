@@ -3,7 +3,6 @@
 #include <TFT_eSPI.h>
 #include <lvgl.h>
 
-// --- NUEVO: Incluimos las pantallas que diseñaste ---
 #include "screens.h"
 
 #define SCREEN_WIDTH 320
@@ -69,10 +68,6 @@ void my_touchpad_read(lv_indev_t *indev, lv_indev_data_t *data)
     data->state = LV_INDEV_STATE_PRESSED;
     uint16_t raw_y = touch_read_spi(0x90);
     uint16_t raw_x = touch_read_spi(0xD0);
-
-    // CORRECCIÓN: Intercambiamos raw_x y raw_y porque la pantalla está en Landscape.
-    // Si al deslizar a la izquierda la pantalla va a la derecha (movimiento invertido),
-    // solo tienes que dar vuelta el 200 y el 3800 así: map(raw_y, 3800, 200, 0, SCREEN_WIDTH)
     data->point.x = map(raw_y, 200, 3800, 0, SCREEN_WIDTH);
     data->point.y = map(raw_x, 200, 3800, 0, SCREEN_HEIGHT);
   }
@@ -143,7 +138,6 @@ void ui_init(bool isFirstBoot)
   }
   else
   {
-    // --- NUEVO: Llamamos a la función de tu archivo screen_main.cpp ---
     ui_screen_main_init();
   }
 }

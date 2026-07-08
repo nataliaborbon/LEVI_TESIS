@@ -245,7 +245,6 @@ int CuestionarioRepository::listarResumenProfesor(int idUsuario,
     sqlite3* db = DatabaseManager::getInstance().getDB();
     int count = 0;
 
-    // COUNT usa LEFT JOIN para incluir cuestionarios sin preguntas aún
     const char* sql = R"(
         SELECT c.idCuestionario, c.titulo, c.estado,
                c.puntajeObtenido, c.puntajeParaAprobar,

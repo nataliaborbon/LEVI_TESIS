@@ -8,7 +8,7 @@ String extraerToken(AsyncWebServerRequest* request) {
     // Formato esperado: "Bearer <token>"
     if (!auth.startsWith("Bearer ")) return "";
 
-    return auth.substring(7); // salteamos "Bearer "
+    return auth.substring(7); 
 }
 
 bool verificarSesionPanel(AsyncWebServerRequest* request, const String& rolRequerido) {

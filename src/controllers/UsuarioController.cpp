@@ -13,10 +13,6 @@
 static void handleCrear(AsyncWebServerRequest *request, uint8_t *data,
                         size_t len, size_t, size_t)
 {
-    // Solo profesor, tutor o el propio invitado pueden llegar acá,
-    // pero la clave maestra es la que realmente autoriza la creación.
-    // if (!verificarSesionPanel(request)) return;
-
     StaticJsonDocument<512> doc;
     if (deserializeJson(doc, data, len))
     {
@@ -309,17 +305,14 @@ static void handleListarTutores(AsyncWebServerRequest *request)
 // ---------------------------------------------------------------------------
 void registrarUsuarioController(AsyncWebServer &server)
 {
-    // 1. Rutas de PERFIL (Más específicas primero)
     server.on("/api/usuarios/perfil/password", HTTP_PUT, [](AsyncWebServerRequest *r) {}, nullptr, handleCambiarPassword);
     server.on("/api/usuarios/perfil", HTTP_PUT, [](AsyncWebServerRequest *r) {}, nullptr, handleEditarPerfil);
     server.on("/api/usuarios/perfil", HTTP_GET, handleObtenerPerfil);
 
-    // 2. Rutas de USUARIOS / PASSWORD GENERAL
     server.on("/api/usuarios/password", HTTP_PUT, [](AsyncWebServerRequest *r) {}, nullptr, handleRecuperarPassword);
     server.on("/api/usuarios", HTTP_POST, [](AsyncWebServerRequest *r) {}, nullptr, handleCrear);
     server.on("/api/usuario", HTTP_DELETE, handleEliminar);
 
-    // 3. Listados (GET)
     server.on("/api/usuarios/profesores", HTTP_GET, handleListarProfesores);
     server.on("/api/usuarios/tutores", HTTP_GET, handleListarTutores);
 }

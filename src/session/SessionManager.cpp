@@ -57,7 +57,6 @@ SesionResult SessionManager::iniciarSesionPanel(const String& rol, int idUsuario
     Serial.printf("[Session] Sesión panel iniciada: rol=%s nombre=%s\n",
                   rol.c_str(), nombre.c_str());
 
-    // --- NUEVO: Actualizar UI si es un profesor o tutor ---
     if (rol == "profesor" || rol == "tutor") {
         ui_update_usuario(_panel.nombre.c_str());
     }
@@ -72,7 +71,6 @@ void SessionManager::cerrarSesionPanel() {
 
     Serial.printf("[Session] Sesión panel cerrada: rol=%s\n", _panel.rol.c_str());
 
-    // --- NUEVO: Restaurar UI al cerrar sesión ---
     ui_update_usuario("");
 
     if (_panel.rol == "invitado") limpiarPreguntaInvitado();
@@ -95,7 +93,6 @@ void SessionManager::actualizarNombrePanel(const String& nuevoNombre) {
         _panel.nombre = nuevoNombre;
         Serial.printf("[Session] Nombre actualizado en sesión: %s\n", nuevoNombre.c_str());
         
-        // Actualizamos la pantalla de la placa de forma inmediata
         if (_panel.rol == "profesor" || _panel.rol == "tutor") {
             ui_update_usuario(_panel.nombre.c_str());
         }

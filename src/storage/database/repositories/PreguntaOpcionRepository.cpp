@@ -273,9 +273,7 @@ int PreguntaRepository::listarRevision(int idCuestionario, PreguntaRevision* buf
                                         int maxSize) {
     sqlite3* db = DatabaseManager::getInstance().getDB();
     int count = 0;
-
-    // JOIN doble con opciones: una vez para la opción elegida, otra para la correcta.
-    // LEFT JOIN en elegida porque puede ser NULL (no respondida).
+    
     const char* sql = R"(
         SELECT p.idPregunta,
                p.pregunta,

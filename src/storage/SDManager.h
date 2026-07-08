@@ -12,7 +12,7 @@
  *
  * La SD aloja dos recursos:
  *   - opencv.js : librería de visión artificial servida con caché.
- *   - eyetracker.db : base de datos SQLite del sistema.
+ *   - levi.db : base de datos SQLite del sistema.
  */
 
 /// @brief Pin Chip Select para el módulo SD del CYD (ESP32-2432S028R).

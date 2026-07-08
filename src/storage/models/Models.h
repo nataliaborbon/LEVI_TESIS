@@ -19,11 +19,11 @@
 struct Usuario
 {
     int idUsuario = 0;
-    String usuario = ""; ///< Nombre de login. Sin espacios, 4-30 caracteres. Único.
+    String usuario = ""; 
     String nombre = "";
     String apellido = "";
-    String rol = "";     ///< "profesor" | "tutor"
-    String materia = ""; ///< Solo profesores. Vacío para tutores.
+    String rol = "";   
+    String materia = ""; 
     String contacto = "";
     String hashPassword = "";
     String salt = "";
@@ -41,7 +41,7 @@ struct Cuestionario
     int idUsuario = 0;
     String titulo = "";
     float puntajeParaAprobar = 0.0f;
-    String estado = "pendiente"; ///< "pendiente" | "en_progreso" | "pausado" | "finalizado"
+    String estado = "pendiente"; 
     float puntajeObtenido = 0.0f;
     String fechaFinalizacion = "";
     int tiempoSegundos = 0;
@@ -111,7 +111,7 @@ struct CuestionarioResumenProfesor
     String estado = "";
     float puntajeObtenido = 0.0f;
     float puntajeParaAprobar = 0.0f;
-    bool aprobado = false; ///< puntajeObtenido >= puntajeParaAprobar
+    bool aprobado = false; 
     int cantPreguntas = 0;
 };
 
@@ -144,9 +144,9 @@ struct CuestionarioResumenTutor
     String estado = "";
     float puntajeObtenido = 0.0f;
     float puntajeParaAprobar = 0.0f;
-    bool aprobado = false; ///< puntajeObtenido >= puntajeParaAprobar
+    bool aprobado = false; 
     int cantPreguntas = 0;
-    String materia = ""; ///< JOIN con usuarios
+    String materia = ""; 
 };
 
 /**
@@ -179,9 +179,9 @@ struct PreguntaRevision
     String textoPregunta = "";
     float puntajeCorrecta = 0.0f;
     float puntajeIncorrecta = 0.0f;
-    String opcionElegida = "";  ///< Texto de la opción elegida. Vacío si no respondió.
-    String opcionCorrecta = ""; ///< Texto de la opción correcta.
-    bool fueCorrecto = false;   ///< idOpcionElegida == idOpcionCorrecta
+    String opcionElegida = "";  
+    String opcionCorrecta = ""; 
+    bool fueCorrecto = false;   
 };
 
 // ===========================================================================
@@ -208,8 +208,8 @@ struct PreguntaAlumno
 {
     int idPregunta = 0;
     String textoPregunta = "";
-    int numeroPregunta = 0; ///< Posición en el cuestionario (respondidas + 1)
-    int totalPreguntas = 0; ///< Total de preguntas del cuestionario
+    int numeroPregunta = 0; 
+    int totalPreguntas = 0; 
     OpcionAlumno opciones[4];
     int cantOpciones = 0;
 };

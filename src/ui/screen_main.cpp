@@ -11,7 +11,6 @@ lv_obj_t * lbl_estado_examen_main;
 lv_obj_t * lbl_progreso_main;
 
 // --- Función para actualizar el Usuario desde el backend ---
-// Ahora solo cambia el valor, sin el "Usuario:"
 void ui_update_usuario(const char * nombre) {
   if(lbl_usuario_main) {
     if (strlen(nombre) == 0) {
@@ -24,14 +23,11 @@ void ui_update_usuario(const char * nombre) {
 
 void ui_update_dispositivos(int cantidad) {
   if(lbl_disp_main) {
-    // Como ya tenemos el título "Dispositivos conectados:" fijo en la UI, 
-    // solo le pasamos el número pelado.
     lv_label_set_text_fmt(lbl_disp_main, "%d", cantidad);
   }
 }
 
 void ui_screen_main_init() {
-  // Creamos el tileview sobre la pantalla activa
   tv_main = lv_tileview_create(lv_screen_active());
   lv_obj_set_scrollbar_mode(tv_main, LV_SCROLLBAR_MODE_OFF); 
 
@@ -54,7 +50,6 @@ void ui_screen_main_init() {
   lv_qrcode_set_size(qr, 130);
   lv_qrcode_set_dark_color(qr, color_oscuro);
   lv_qrcode_set_light_color(qr, color_claro);
-  // QR con el bloqueo del puerto 80 para evitar el HTTPS en Android
   lv_qrcode_update(qr, "levi.local", strlen("levi.local"));
   lv_obj_set_style_border_color(qr, color_oscuro, 0);
   lv_obj_set_style_border_width(qr, 3, 0);

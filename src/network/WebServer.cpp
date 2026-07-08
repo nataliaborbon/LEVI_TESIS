@@ -75,18 +75,11 @@ void initWebServer()
     server.onNotFound([](AsyncWebServerRequest *request)
     {
         String url = request->url();
-
-        // 1. Si la ruta empieza con "/api/", es una petición interna mal hecha.
-        // Tiramos un error 404 real en formato JSON para que el frontend lo entienda.
         if (url.startsWith("/api/"))
         {
             request->send(404, "application/json", "{\"ok\":false,\"mensaje\":\"Endpoint de la API no encontrado.\"}");
             return;
         }
-
-        // 2. LA MAGIA: Si es cualquier otra ruta (ej: /alumno, /panel), 
-        // le enviamos el index.html. React se encargará de leer la URL y 
-        // dibujar la pantalla correcta.
         request->send(LittleFS, "/index.html", "text/html"); 
     });
 

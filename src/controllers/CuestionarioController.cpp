@@ -233,14 +233,12 @@ static void handleRevision(AsyncWebServerRequest* r) {
 }
 
 void registrarCuestionarioController(AsyncWebServer& server) {
-    // ⚠️ Las rutas más específicas PRIMERO
     server.on("/api/cuestionario/revision", HTTP_GET, handleRevision);  // ← subir esta
     server.on("/api/cuestionario/iniciar",  HTTP_PATCH, [](AsyncWebServerRequest* r){}, nullptr, handleIniciar);
     server.on("/api/cuestionario/pausar",   HTTP_PATCH, [](AsyncWebServerRequest* r){}, nullptr, handlePausar);
     server.on("/api/cuestionario/reanudar", HTTP_PATCH, [](AsyncWebServerRequest* r){}, nullptr, handleReanudar);
     server.on("/api/cuestionario/finalizar",HTTP_PATCH, [](AsyncWebServerRequest* r){}, nullptr, handleFinalizar);
 
-    // Las genéricas después
     server.on("/api/cuestionarios", HTTP_GET, handleListar);
     server.on("/api/cuestionarios", HTTP_POST, [](AsyncWebServerRequest* r){}, nullptr, handleCrear);
     server.on("/api/cuestionario", HTTP_GET, handleObtener);

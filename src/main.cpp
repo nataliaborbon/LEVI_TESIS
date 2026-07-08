@@ -91,15 +91,12 @@ void loop()
 {
     unsigned long ahora = millis();
 
-    // Tareas del backend (cada 1 segundo)
     if (ahora - _ultimoTick >= TICK_INTERVAL_MS)
     {
         _ultimoTick = ahora;
         SessionManager::getInstance().tick();
         int clientesConectados = WiFi.softAPgetStationNum();
         ui_update_dispositivos(clientesConectados);
-
-        // --- MONITOR: dejalo prendido mientras debuggeamos ---
         Serial.printf(
             "[Monitor] Heap libre: %u | Heap min historico: %u | Stack loopTask libre: %u\n",
             ESP.getFreeHeap(),
@@ -111,10 +108,8 @@ void loop()
     unsigned long t0 = micros();
     ui_loop();
     unsigned long dt = micros() - t0;
-    if (dt > 15000) // 15ms, ajustá si ves que siempre supera esto
+    if (dt > 15000)
     {
         Serial.printf("[Monitor] ui_loop() tardo %lu us (heap libre: %u)\n", dt, ESP.getFreeHeap());
     }
-
-    delay(1); // cede CPU al scheduler, no soluciona lo del heap pero no molesta
 }
