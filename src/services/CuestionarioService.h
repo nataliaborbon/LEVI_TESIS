@@ -108,8 +108,7 @@ public:
      * @param tiempoSegundos Tiempo transcurrido desde que inició.
      * @return CuestionarioResult con ok=true si tuvo éxito.
      */
-    CuestionarioResult finalizar(int idCuestionario, int idUsuario,
-                                 int tiempoSegundos);
+    CuestionarioResult finalizar(int idCuestionario, int idUsuario);
 
     /**
      * @brief Lista los cuestionarios del profesor en formato resumido.
@@ -138,7 +137,21 @@ public:
      */
     int obtenerRevision(int idCuestionario, PreguntaRevision* buffer, int maxSize);
 
+    /**
+     * @brief Suma tiempo al examen activo basado en los heartbeats del alumno
+     * @param idCuestionario Id del cuestionario
+     *  */ 
+    void procesarHeartbeatCronometro(int idCuestionario);
+
 private:
+
+    int _idCuestionarioTimer = 0;
+    int _tiempoAcumuladoSeg = 0;
+
+    void _iniciarCronometro(int idCuestionario);
+    void _pausarCronometro(int idCuestionario);
+    int _tiempoTranscurridoSeg(int idCuestionario);
+
     CuestionarioService() {}
     CuestionarioService(const CuestionarioService&)            = delete;
     CuestionarioService& operator=(const CuestionarioService&) = delete;

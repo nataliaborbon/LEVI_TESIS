@@ -15,6 +15,13 @@
 #define XPT2046_CLK 25
 #define XPT2046_CS 33
 
+// Configuración de la Suspensión ---
+#define BACKLIGHT_PIN 21
+#define TIMEOUT_INACTIVIDAD_MS 60000 // 60 segundos (1 minuto)
+
+static uint32_t last_touch_time = 0;
+static bool screen_awake = true;
+
 TFT_eSPI tft = TFT_eSPI();
 
 // Buffer alineado en memoria para LVGL 9
@@ -65,6 +72,17 @@ void my_touchpad_read(lv_indev_t *indev, lv_indev_data_t *data)
 {
   if (digitalRead(XPT2046_IRQ) == LOW)
   {
+    //Lógica de despertar
+    last_touch_time = millis();
+
+    if (!screen_awake) {
+      screen_awake = true;
+      digitalWrite(BACKLIGHT_PIN, HIGH); 
+      
+      data->state = LV_INDEV_STATE_RELEASED;
+      return; 
+    }
+
     data->state = LV_INDEV_STATE_PRESSED;
     uint16_t raw_y = touch_read_spi(0x90);
     uint16_t raw_x = touch_read_spi(0xD0);
@@ -103,6 +121,11 @@ static uint32_t my_tick_get_cb(void)
 
 void ui_init(bool isFirstBoot)
 {
+  //Configurar Pin de Iluminación
+  pinMode(BACKLIGHT_PIN, OUTPUT);
+  digitalWrite(BACKLIGHT_PIN, HIGH);
+  last_touch_time = millis();
+
   // 1. Inicializar Pantalla (Usa Hardware SPI)
   tft.begin();
   tft.setRotation(1);
@@ -126,7 +149,6 @@ void ui_init(bool isFirstBoot)
   // 4. DECIDIR QUÉ INTERFAZ CARGAR
   if (isFirstBoot)
   {
-    // Todavía no programamos el teclado de guardado, así que dejamos este texto provisorio
     lv_obj_t *pantalla_actual = lv_screen_active();
     lv_obj_set_style_bg_color(pantalla_actual, lv_color_hex(0xF0F0F0), 0);
 
@@ -147,9 +169,16 @@ void ui_loop()
   static uint32_t t0;
   static uint32_t espera;
   const uint32_t t = millis();
+  
   if (t - t0 > espera)
   {
     espera = lv_timer_handler();
     t0 = t;
+  }
+
+  //Vigilar Inactividad para Apagar la Pantalla ---
+  if (screen_awake && (millis() - last_touch_time > TIMEOUT_INACTIVIDAD_MS)) {
+    screen_awake = false;
+    digitalWrite(BACKLIGHT_PIN, LOW); // Apagamos la luz trasera
   }
 }

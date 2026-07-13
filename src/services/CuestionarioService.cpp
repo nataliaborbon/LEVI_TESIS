@@ -30,6 +30,32 @@ float CuestionarioService::_calcularPuntaje(int idCuestionario) {
 }
 
 // ---------------------------------------------------------------------------
+// Cronómetro (Impulsado por Heartbeats)
+// ---------------------------------------------------------------------------
+
+void CuestionarioService::_iniciarCronometro(int idCuestionario) {
+    _idCuestionarioTimer = idCuestionario;
+    _tiempoAcumuladoSeg  = 0;
+}
+
+void CuestionarioService::_pausarCronometro(int idCuestionario) {
+    // Al pausar no hay que calcular nada.
+    // El tiempo se congeló exacto en el último heartbeat.
+}
+
+int CuestionarioService::_tiempoTranscurridoSeg(int idCuestionario) {
+    if (_idCuestionarioTimer != idCuestionario) return 0;
+    return _tiempoAcumuladoSeg;
+}
+
+void CuestionarioService::procesarHeartbeatCronometro(int idCuestionario) {
+    if (_idCuestionarioTimer == idCuestionario) {
+        // Sumamos exactamente 2 segundos por cada heartbeat recibido
+        _tiempoAcumuladoSeg += 2;
+    }
+}
+
+// ---------------------------------------------------------------------------
 // Crear
 // ---------------------------------------------------------------------------
 
@@ -225,7 +251,11 @@ CuestionarioResult CuestionarioService::iniciar(int idCuestionario, int idUsuari
     DbResult db = CuestionarioRepository::getInstance()
                   .cambiarEstado(idCuestionario, "en_progreso");
     result.ok = db.ok;
-    if (!result.ok) result.mensaje = db.mensaje;
+    if (!result.ok) { 
+        result.mensaje = db.mensaje; 
+        return result; 
+    }
+    _iniciarCronometro(idCuestionario); 
     return result;
 }
 
@@ -251,7 +281,12 @@ CuestionarioResult CuestionarioService::pausar(int idCuestionario, int idUsuario
     DbResult db = CuestionarioRepository::getInstance()
                   .cambiarEstado(idCuestionario, "pausado");
     result.ok = db.ok;
-    if (!result.ok) result.mensaje = db.mensaje;
+    if (!result.ok) { 
+        result.mensaje = db.mensaje; 
+        return result; 
+    }
+
+    _pausarCronometro(idCuestionario); 
     return result;
 }
 
@@ -285,7 +320,12 @@ CuestionarioResult CuestionarioService::reanudar(int idCuestionario, int idUsuar
     DbResult db = CuestionarioRepository::getInstance()
                   .cambiarEstado(idCuestionario, "en_progreso");
     result.ok = db.ok;
-    if (!result.ok) result.mensaje = db.mensaje;
+    if (!result.ok) { 
+        result.mensaje = db.mensaje; 
+        return result; 
+    }
+
+    _iniciarCronometro(idCuestionario); 
     return result;
 }
 
@@ -293,8 +333,7 @@ CuestionarioResult CuestionarioService::reanudar(int idCuestionario, int idUsuar
 // Finalizar
 // ---------------------------------------------------------------------------
 
-CuestionarioResult CuestionarioService::finalizar(int idCuestionario, int idUsuario,
-                                                    int tiempoSegundos) {
+CuestionarioResult CuestionarioService::finalizar(int idCuestionario, int idUsuario) {
     CuestionarioResult result;
 
     if (!_esDuenio(idCuestionario, idUsuario)) {
@@ -310,15 +349,20 @@ CuestionarioResult CuestionarioService::finalizar(int idCuestionario, int idUsua
     }
 
     float puntaje = _calcularPuntaje(idCuestionario);
+    
+    // Extraer el tiempo del cronómetro antes de apagarlo ---
+    int tiempoSegundos = _tiempoTranscurridoSeg(idCuestionario);
 
-    // Fecha actual como string ISO básico (la ESP32 no tiene RTC, usamos millis como placeholder)
-    // TODO: conectar con un RTC real si se dispone de uno
     String fecha = "2025-01-01T00:00:00";
 
     DbResult db = CuestionarioRepository::getInstance()
                   .guardarResultado(idCuestionario, puntaje, fecha, tiempoSegundos);
     result.ok = db.ok;
     if (!result.ok) result.mensaje = db.mensaje;
+    
+    // Apagamos el cronómetro
+    _idCuestionarioTimer = 0; 
+    
     return result;
 }
 

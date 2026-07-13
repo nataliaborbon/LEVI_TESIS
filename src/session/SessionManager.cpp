@@ -1,5 +1,7 @@
 #include "SessionManager.h"
 #include "../ui/screens.h"
+#include "../storage/database/repositories/CuestionarioRepository.h"
+#include "../services/CuestionarioService.h"
 
 // ---------------------------------------------------------------------------
 // Helpers privados
@@ -135,6 +137,13 @@ bool SessionManager::verificarTokenAlumno(const String& token) {
 bool SessionManager::heartbeatAlumno(const String& token) {
     if (!verificarTokenAlumno(token)) return false;
     _alumno.ultimaActividad = millis();
+
+    //Aprovechamos el heartbeat para sumar tiempo
+    Cuestionario activo = CuestionarioRepository::getInstance().obtenerActivo();
+    if (activo.idCuestionario != 0 && activo.estado == "en_progreso") {
+        CuestionarioService::getInstance().procesarHeartbeatCronometro(activo.idCuestionario);
+    }
+
     return true;
 }
 
@@ -176,6 +185,12 @@ void SessionManager::tick() {
     if (_alumno.activa) {
         if (ahora - _alumno.ultimaActividad > TIMEOUT_ALUMNO_MS) {
             Serial.println("[Session] Timeout de sesión alumno.");
+            //Auto-pausar si se cae la conexión ---
+            Cuestionario activo = CuestionarioRepository::getInstance().obtenerActivo();
+            if (activo.idCuestionario != 0 && activo.estado == "en_progreso") {
+                Serial.println("[Session] Examen pausado automáticamente por pérdida de conexión.");
+                CuestionarioService::getInstance().pausar(activo.idCuestionario, activo.idUsuario);
+            }
             cerrarSesionAlumno();
         }
     }

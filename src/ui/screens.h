@@ -9,7 +9,7 @@ void ui_screen_main_init();
 // Inicializa la pantalla de primer uso
 void ui_screen_setup_init();
 
-// --- NUEVO: Función para actualizar el Usuario ---
+// Función para actualizar el Usuario
 void ui_update_usuario(const char * nombre);
 
 // Funcion para detectar dispositivos

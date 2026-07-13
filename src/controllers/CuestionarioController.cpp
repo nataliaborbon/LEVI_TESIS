@@ -209,10 +209,13 @@ static void handleReanudar(AsyncWebServerRequest* r, uint8_t*, size_t, size_t, s
     if (!result.ok) enviarError(r, 400, result.mensaje); else enviarOk(r, "Reanudado.");
 }
 
-static void handleFinalizar(AsyncWebServerRequest* r, uint8_t* data, size_t len, size_t, size_t) {
+static void handleFinalizar(AsyncWebServerRequest* r, uint8_t*, size_t, size_t, size_t) {
     if (!r->hasParam("id")) { enviarError(r, 400, "Falta ID"); return; }
-    int t = 0; StaticJsonDocument<64> doc; if (!deserializeJson(doc, data, len)) t = doc["tiempoSegundos"] | 0;
-    CuestionarioResult result = CuestionarioService::getInstance().finalizar(r->getParam("id")->value().toInt(), SessionManager::getInstance().getSesionPanel().idUsuario, t);
+    CuestionarioResult result = CuestionarioService::getInstance().finalizar(
+        r->getParam("id")->value().toInt(),
+        SessionManager::getInstance().getSesionPanel().idUsuario
+    );
+    
     if (!result.ok) enviarError(r, 400, result.mensaje); else enviarOk(r, "Finalizado.");
 }
 
