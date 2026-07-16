@@ -1,6 +1,6 @@
-#include "CuestionarioService.h"
-#include "../storage/database/repositories/CuestionarioRepository.h"
-#include "../storage/database/repositories/PreguntaOpcionRepository.h"
+#include "services/CuestionarioService.h"
+#include "storage/database/repositories/CuestionarioRepository.h"
+#include "storage/database/repositories/PreguntaOpcionRepository.h"
 
 // ---------------------------------------------------------------------------
 // Helpers privados

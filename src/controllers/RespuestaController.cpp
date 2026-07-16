@@ -1,7 +1,7 @@
-#include "RespuestaController.h"
-#include "../middleware/Middleware.h"
-#include "../services/RespuestaService.h"
-#include "../session/SessionManager.h"
+#include "controllers/RespuestaController.h"
+#include "middleware/Middleware.h"
+#include "services/RespuestaService.h"
+#include "session/SessionManager.h"
 #include <ArduinoJson.h>
 
 // ---------------------------------------------------------------------------

@@ -1,7 +1,7 @@
-#include "UsuarioService.h"
-#include "AuthService.h"
-#include "../config/ConfigManager.h"
-#include "../storage/database/repositories/UsuarioRepository.h"
+#include "services/UsuarioService.h"
+#include "services/AuthService.h"
+#include "config/ConfigManager.h"
+#include "storage/database/repositories/UsuarioRepository.h"
 
 // ---------------------------------------------------------------------------
 // Validación de campos

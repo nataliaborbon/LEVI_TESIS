@@ -1,7 +1,6 @@
-#include "SessionManager.h"
-#include "../ui/screens.h"
-#include "../storage/database/repositories/CuestionarioRepository.h"
-#include "../services/CuestionarioService.h"
+#include "session/SessionManager.h"
+#include "storage/database/repositories/CuestionarioRepository.h"
+#include "services/CuestionarioService.h"
 
 // ---------------------------------------------------------------------------
 // Helpers privados
@@ -36,7 +35,6 @@ SesionResult SessionManager::iniciarSesionPanel(const String& rol, int idUsuario
 
     if (_panel.activa) {
         if (prioridadNuevo > prioridadActual) {
-            // Expulsar sesión actual para dar paso al de mayor prioridad
             Serial.printf("[Session] Expulsando sesión de '%s' por '%s'.\n",
                           _panel.rol.c_str(), rol.c_str());
             cerrarSesionPanel();
@@ -59,10 +57,6 @@ SesionResult SessionManager::iniciarSesionPanel(const String& rol, int idUsuario
     Serial.printf("[Session] Sesión panel iniciada: rol=%s nombre=%s\n",
                   rol.c_str(), nombre.c_str());
 
-    if (rol == "profesor" || rol == "tutor") {
-        ui_update_usuario(_panel.nombre.c_str());
-    }
-
     result.ok    = true;
     result.token = _panel.token;
     return result;
@@ -72,8 +66,6 @@ void SessionManager::cerrarSesionPanel() {
     if (!_panel.activa) return;
 
     Serial.printf("[Session] Sesión panel cerrada: rol=%s\n", _panel.rol.c_str());
-
-    ui_update_usuario("");
 
     if (_panel.rol == "invitado") limpiarPreguntaInvitado();
 
@@ -94,10 +86,6 @@ void SessionManager::actualizarNombrePanel(const String& nuevoNombre) {
     if (_panel.activa) {
         _panel.nombre = nuevoNombre;
         Serial.printf("[Session] Nombre actualizado en sesión: %s\n", nuevoNombre.c_str());
-        
-        if (_panel.rol == "profesor" || _panel.rol == "tutor") {
-            ui_update_usuario(_panel.nombre.c_str());
-        }
     }
 }
 
@@ -138,7 +126,6 @@ bool SessionManager::heartbeatAlumno(const String& token) {
     if (!verificarTokenAlumno(token)) return false;
     _alumno.ultimaActividad = millis();
 
-    //Aprovechamos el heartbeat para sumar tiempo
     Cuestionario activo = CuestionarioRepository::getInstance().obtenerActivo();
     if (activo.idCuestionario != 0 && activo.estado == "en_progreso") {
         CuestionarioService::getInstance().procesarHeartbeatCronometro(activo.idCuestionario);
@@ -168,7 +155,6 @@ void SessionManager::limpiarPreguntaInvitado() {
 void SessionManager::tick() {
     unsigned long ahora = millis();
 
-    // Chequeo sesión panel
     if (_panel.activa) {
         unsigned long timeout = (_panel.rol == "invitado")
                                 ? TIMEOUT_INVITADO_MS
@@ -181,11 +167,9 @@ void SessionManager::tick() {
         }
     }
 
-    // Chequeo sesión alumno
     if (_alumno.activa) {
         if (ahora - _alumno.ultimaActividad > TIMEOUT_ALUMNO_MS) {
             Serial.println("[Session] Timeout de sesión alumno.");
-            //Auto-pausar si se cae la conexión ---
             Cuestionario activo = CuestionarioRepository::getInstance().obtenerActivo();
             if (activo.idCuestionario != 0 && activo.estado == "en_progreso") {
                 Serial.println("[Session] Examen pausado automáticamente por pérdida de conexión.");

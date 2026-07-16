@@ -1,4 +1,4 @@
-#include "CuestionarioRepository.h"
+#include "storage/database/repositories/CuestionarioRepository.h"
 
 Cuestionario CuestionarioRepository::_filaACuestionario(sqlite3_stmt* stmt) {
     Cuestionario c;

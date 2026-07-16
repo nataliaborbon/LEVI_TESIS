@@ -1,6 +1,6 @@
-#include "RespuestaService.h"
-#include "../storage/database/repositories/CuestionarioRepository.h"
-#include "../storage/database/repositories/PreguntaOpcionRepository.h"
+#include "services/RespuestaService.h"
+#include "storage/database/repositories/CuestionarioRepository.h"
+#include "storage/database/repositories/PreguntaOpcionRepository.h"
 
 SesionResult RespuestaService::iniciarSesion() {
     return SessionManager::getInstance().iniciarSesionAlumno();

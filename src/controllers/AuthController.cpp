@@ -1,8 +1,8 @@
-#include "AuthController.h"
-#include "../middleware/Middleware.h"
-#include "../services/AuthService.h"
-#include "../services/UsuarioService.h"
-#include "../session/SessionManager.h"
+#include "controllers/AuthController.h"
+#include "middleware/Middleware.h"
+#include "services/AuthService.h"
+#include "services/UsuarioService.h"
+#include "session/SessionManager.h"
 #include <ArduinoJson.h>
 
 // ---------------------------------------------------------------------------

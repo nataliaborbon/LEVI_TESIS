@@ -2,26 +2,15 @@
 #include <LittleFS.h>
 #include <SD.h>
 
-#include "../controllers/AuthController.h"
-#include "../controllers/UsuarioController.h"
-#include "../controllers/CuestionarioController.h"
-#include "../controllers/RespuestaController.h"
+#include "controllers/AuthController.h"
+#include "controllers/UsuarioController.h"
+#include "controllers/CuestionarioController.h"
+#include "controllers/RespuestaController.h"
 
 AsyncWebServer server(80);
 
 void initWebServer()
 {
-    // -----------------------------------------------------------------------
-    // CORS preflight
-    // -----------------------------------------------------------------------
-    server.on("/*", HTTP_OPTIONS, [](AsyncWebServerRequest *request)
-              {
-        AsyncWebServerResponse* response = request->beginResponse(200);
-        response->addHeader("Access-Control-Allow-Origin",  "*");
-        response->addHeader("Access-Control-Allow-Methods", "GET,POST,PUT,DELETE,OPTIONS");
-        response->addHeader("Access-Control-Allow-Headers", "Content-Type,Authorization");
-        request->send(response); });
-
     // -----------------------------------------------------------------------
     // API
     // -----------------------------------------------------------------------
@@ -70,10 +59,20 @@ void initWebServer()
         .setDefaultFile("index.html");
 
     // -----------------------------------------------------------------------
-    // 404 - Catch-All para React (Single Page Application)
+    // 404 - Catch-All para React (Single Page Application) + CORS preflight
     // -----------------------------------------------------------------------
     server.onNotFound([](AsyncWebServerRequest *request)
     {
+        if (request->method() == HTTP_OPTIONS)
+        {
+            AsyncWebServerResponse* response = request->beginResponse(200);
+            response->addHeader("Access-Control-Allow-Origin",  "*");
+            response->addHeader("Access-Control-Allow-Methods", "GET,POST,PUT,DELETE,OPTIONS");
+            response->addHeader("Access-Control-Allow-Headers", "Content-Type,Authorization");
+            request->send(response);
+            return;
+        }
+
         String url = request->url();
         if (url.startsWith("/api/"))
         {

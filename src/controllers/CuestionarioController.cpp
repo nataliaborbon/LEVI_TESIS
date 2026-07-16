@@ -1,7 +1,7 @@
-#include "CuestionarioController.h"
-#include "../middleware/Middleware.h"
-#include "../services/CuestionarioService.h"
-#include "../session/SessionManager.h"
+#include "controllers/CuestionarioController.h"
+#include "middleware/Middleware.h"
+#include "services/CuestionarioService.h"
+#include "session/SessionManager.h"
 #include <ArduinoJson.h>
 
 // ---------------------------------------------------------------------------

@@ -1,9 +1,9 @@
-#include "ui_manager.h"
+#include "ui/ui_manager.h"
 #include <Arduino.h>
 #include <TFT_eSPI.h>
 #include <lvgl.h>
-
-#include "screens.h"
+#include "ui/screens.h"
+#include "session/SessionManager.h"
 
 #define SCREEN_WIDTH 320
 #define SCREEN_HEIGHT 240
@@ -169,16 +169,24 @@ void ui_loop()
   static uint32_t t0;
   static uint32_t espera;
   const uint32_t t = millis();
-  
+
   if (t - t0 > espera)
   {
     espera = lv_timer_handler();
     t0 = t;
   }
 
-  //Vigilar Inactividad para Apagar la Pantalla ---
+  static String ultimo_usuario_ui = "@@@"; // Valor imposible para forzar primera carga
+  String usuario_actual = SessionManager::getInstance().hayPanelActivo() ? 
+                          SessionManager::getInstance().getSesionPanel().nombre : "";
+
+  if (usuario_actual != ultimo_usuario_ui) {
+      ui_update_usuario(usuario_actual.c_str());
+      ultimo_usuario_ui = usuario_actual;
+  }
+
   if (screen_awake && (millis() - last_touch_time > TIMEOUT_INACTIVIDAD_MS)) {
     screen_awake = false;
-    digitalWrite(BACKLIGHT_PIN, LOW); // Apagamos la luz trasera
+    digitalWrite(BACKLIGHT_PIN, LOW);
   }
 }

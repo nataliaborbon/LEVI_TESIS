@@ -1,4 +1,4 @@
-#include "UsuarioRepository.h"
+#include "storage/database/repositories/UsuarioRepository.h"
 
 Usuario UsuarioRepository::_filaAUsuario(sqlite3_stmt* stmt) {
     Usuario u;
