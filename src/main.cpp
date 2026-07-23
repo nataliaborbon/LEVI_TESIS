@@ -97,11 +97,11 @@ void loop()
         SessionManager::getInstance().tick();
         int clientesConectados = WiFi.softAPgetStationNum();
         ui_update_dispositivos(clientesConectados);
-        Serial.printf(
-            "[Monitor] Heap libre: %u | Heap min historico: %u | Stack loopTask libre: %u\n",
-            ESP.getFreeHeap(),
-            ESP.getMinFreeHeap(),
-            uxTaskGetStackHighWaterMark(NULL));
+        //Serial.printf(
+        //    "[Monitor] Heap libre: %u | Heap min historico: %u | Stack loopTask libre: %u\n",
+        //    ESP.getFreeHeap(),
+        //    ESP.getMinFreeHeap(),
+        //    uxTaskGetStackHighWaterMark(NULL));
     }
 
     // Tareas de la interfaz gráfica
@@ -110,6 +110,6 @@ void loop()
     unsigned long dt = micros() - t0;
     if (dt > 15000)
     {
-        Serial.printf("[Monitor] ui_loop() tardo %lu us (heap libre: %u)\n", dt, ESP.getFreeHeap());
+        //Serial.printf("[Monitor] ui_loop() tardo %lu us (heap libre: %u)\n", dt, ESP.getFreeHeap());
     }
 }
