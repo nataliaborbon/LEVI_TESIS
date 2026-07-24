@@ -27,6 +27,19 @@ void ui_update_dispositivos(int cantidad) {
   }
 }
 
+// --- Función para actualizar la Cámara ---
+void ui_update_camara(bool lista) {
+  if(lbl_camara_main) {
+    if (lista) {
+      lv_label_set_text(lbl_camara_main, "Transmitiendo");
+      lv_obj_set_style_text_color(lbl_camara_main, lv_color_hex(0x2ecc71), 0); // Verde
+    } else {
+      lv_label_set_text(lbl_camara_main, "Desconectada");
+      lv_obj_set_style_text_color(lbl_camara_main, lv_color_hex(0xe74c3c), 0); // Rojo
+    }
+  }
+}
+
 void ui_screen_main_init() {
   tv_main = lv_tileview_create(lv_screen_active());
   lv_obj_set_scrollbar_mode(tv_main, LV_SCROLLBAR_MODE_OFF); 

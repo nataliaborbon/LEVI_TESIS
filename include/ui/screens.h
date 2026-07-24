@@ -15,4 +15,7 @@ void ui_update_usuario(const char * nombre);
 // Funcion para detectar dispositivos
 void ui_update_dispositivos(int cantidad);
 
+// --- Función para actualizar la Cámara ---
+void ui_update_camara(bool lista);
+
 #endif

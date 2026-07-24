@@ -21,6 +21,7 @@
 
 static uint32_t last_touch_time = 0;
 static bool screen_awake = true;
+extern unsigned long ultimoPingCamara;
 
 TFT_eSPI tft = TFT_eSPI();
 
@@ -176,7 +177,10 @@ void ui_loop()
     t0 = t;
   }
 
-  static String ultimo_usuario_ui = "@@@"; // Valor imposible para forzar primera carga
+  // ---------------------------------------------------------
+  // 1. ACTUALIZAR USUARIO (PROFESOR/PANEL)
+  // ---------------------------------------------------------
+  static String ultimo_usuario_ui = "@@@"; 
   String usuario_actual = SessionManager::getInstance().hayPanelActivo() ? 
                           SessionManager::getInstance().getSesionPanel().nombre : "";
 
@@ -185,6 +189,24 @@ void ui_loop()
       ultimo_usuario_ui = usuario_actual;
   }
 
+  // ---------------------------------------------------------
+  // ACTUALIZAR CÁMARA (Watchdog de 4 segundos)
+  // ---------------------------------------------------------
+  static bool ultima_camara_ui = false; 
+  static bool primera_vez_camara = true;
+  
+  // Si tuvimos un ping en los últimos 4000ms, hay stream activo
+  bool camara_actual = (ultimoPingCamara > 0) && (millis() - ultimoPingCamara < 4000);
+
+  if (camara_actual != ultima_camara_ui || primera_vez_camara) {
+      ui_update_camara(camara_actual);
+      ultima_camara_ui = camara_actual;
+      primera_vez_camara = false;
+  }
+
+  // ---------------------------------------------------------
+  // 3. SUSPENSIÓN POR INACTIVIDAD TÁCTIL
+  // ---------------------------------------------------------
   if (screen_awake && (millis() - last_touch_time > TIMEOUT_INACTIVIDAD_MS)) {
     screen_awake = false;
     digitalWrite(BACKLIGHT_PIN, LOW);
