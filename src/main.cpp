@@ -1,6 +1,7 @@
 #include <Arduino.h>
 #include <LittleFS.h>
 #include <WiFi.h>
+#include <Preferences.h> 
 
 #include "config/NetworkConfig.h"
 #include "config/ConfigManager.h"
@@ -12,16 +13,15 @@
 #include "ui/screens.h"
 #include "ui/ui_manager.h"
 
-/**
- * @file main.cpp
- * @brief Punto de entrada del firmware del CYD.
- */
 static constexpr unsigned long TICK_INTERVAL_MS = 1000UL;
 static unsigned long _ultimoTick = 0;
 
 const int LED_ROJO = 4;
 const int LED_VERDE = 16;
 const int LED_AZUL = 17;
+
+// Variable global para que el loop sepa si estamos en modo configuración
+bool g_esPrimerInicio = false; 
 
 void setup()
 {
@@ -43,14 +43,23 @@ void setup()
         return;
     }
     Serial.println("[Main] LittleFS montado.");
-    Serial.printf("[Monitor] Heap libre tras LittleFS: %u\n", ESP.getFreeHeap());
 
-    // 2. Claves maestras (LÓGICA PARA LA INTERFAZ)
-    bool esPrimerInicio = false;
+    // --- BLOQUE DE BORRADO DE PRUEBA (deshabilitado) ---
+    // El namespace real que usa ConfigManager es "levi_cfg" (ver ConfigManager.h),
+    // no "config". Si en algún momento necesitás forzar el primer arranque para
+    // pruebas, descomentá estas 3 líneas, flasheá UNA vez, y volvé a comentarlas
+    // antes de la versión final
+
+    //Preferences pref;
+    //pref.begin("levi_cfg", false);
+    //pref.clear();
+    //pref.end();
+
+    // 2. Revisar Configuración de Claves
     if (!ConfigManager::getInstance().clavesConfiguradas())
     {
         Serial.println("[Main] Claves maestras NO configuradas. Se requiere configuracion inicial.");
-        esPrimerInicio = true;
+        g_esPrimerInicio = true;
     }
     else
     {
@@ -58,32 +67,39 @@ void setup()
     }
 
     // 3. INICIALIZAR LA PANTALLA TÁCTIL (CYD)
-    Serial.printf("[Monitor] Heap libre ANTES de ui_init: %u\n", ESP.getFreeHeap());
-    ui_init(esPrimerInicio);
-    Serial.printf("[Monitor] Heap libre DESPUES de ui_init: %u\n", ESP.getFreeHeap());
+    ui_init(g_esPrimerInicio);
     Serial.println("[Main] Pantalla inicializada.");
 
-    // 4. SD
+    // 4. EL FRENO DE MANO
+    if (g_esPrimerInicio)
+    {
+        Serial.println("[Main] MODO CONFIGURACIÓN: Deteniendo arranque de periféricos.");
+        // Cortamos el setup acá. 
+        return; 
+    }
+
+    // =========================================================================
+    // INICIO NORMAL
+    // =========================================================================
+
+    // 5. SD
     if (!initSD())
     {
         Serial.println("[Main] Error: no se pudo montar la SD.");
     }
-    Serial.printf("[Monitor] Heap libre DESPUES de initSD: %u\n", ESP.getFreeHeap());
 
-    // 5. Base de datos
+    // 6. Base de datos
     if (!DatabaseManager::getInstance().begin("/sd/levi.db"))
     {
         Serial.println("[Main] Error: no se pudo inicializar la base de datos.");
     }
-    Serial.printf("[Monitor] Heap libre DESPUES de DB: %u\n", ESP.getFreeHeap());
 
-    // 6. WiFi Access Point
+    // 7. WiFi Access Point
     initWiFiAP();
 
-    // 7. Servidor web
+    // 8. Servidor web
     initWebServer();
 
-    Serial.printf("[Monitor] Heap libre AL FINAL DE SETUP: %u\n", ESP.getFreeHeap());
     Serial.println("[Main] Sistema completamente listo.");
 }
 
@@ -91,25 +107,18 @@ void loop()
 {
     unsigned long ahora = millis();
 
-    if (ahora - _ultimoTick >= TICK_INTERVAL_MS)
+    // Solo ejecutamos la lógica de red si NO estamos en la pantalla de primer inicio
+    if (!g_esPrimerInicio)
     {
-        _ultimoTick = ahora;
-        SessionManager::getInstance().tick();
-        int clientesConectados = WiFi.softAPgetStationNum();
-        ui_update_dispositivos(clientesConectados);
-        //Serial.printf(
-        //    "[Monitor] Heap libre: %u | Heap min historico: %u | Stack loopTask libre: %u\n",
-        //    ESP.getFreeHeap(),
-        //    ESP.getMinFreeHeap(),
-        //    uxTaskGetStackHighWaterMark(NULL));
+        if (ahora - _ultimoTick >= TICK_INTERVAL_MS)
+        {
+            _ultimoTick = ahora;
+            SessionManager::getInstance().tick();
+            int clientesConectados = WiFi.softAPgetStationNum();
+            ui_update_dispositivos(clientesConectados);
+        }
     }
 
-    // Tareas de la interfaz gráfica
-    unsigned long t0 = micros();
+    // Tareas de la interfaz gráfica (esto debe correr SIEMPRE para que funcione el touch)
     ui_loop();
-    unsigned long dt = micros() - t0;
-    if (dt > 15000)
-    {
-        //Serial.printf("[Monitor] ui_loop() tardo %lu us (heap libre: %u)\n", dt, ESP.getFreeHeap());
-    }
 }

@@ -21,7 +21,9 @@
 
 static uint32_t last_touch_time = 0;
 static bool screen_awake = true;
+
 extern unsigned long ultimoPingCamara;
+extern bool g_esPrimerInicio; // Traemos la variable del main.cpp
 
 TFT_eSPI tft = TFT_eSPI();
 
@@ -73,7 +75,6 @@ void my_touchpad_read(lv_indev_t *indev, lv_indev_data_t *data)
 {
   if (digitalRead(XPT2046_IRQ) == LOW)
   {
-    //Lógica de despertar
     last_touch_time = millis();
 
     if (!screen_awake) {
@@ -122,20 +123,16 @@ static uint32_t my_tick_get_cb(void)
 
 void ui_init(bool isFirstBoot)
 {
-  //Configurar Pin de Iluminación
   pinMode(BACKLIGHT_PIN, OUTPUT);
   digitalWrite(BACKLIGHT_PIN, HIGH);
   last_touch_time = millis();
 
-  // 1. Inicializar Pantalla (Usa Hardware SPI)
   tft.begin();
   tft.setRotation(1);
   tft.fillScreen(TFT_BLACK);
 
-  // 2. Inicializar Táctil (Usa Software SPI)
   touch_init();
 
-  // 3. Inicializar LVGL
   lv_init();
   lv_tick_set_cb(my_tick_get_cb);
 
@@ -150,14 +147,7 @@ void ui_init(bool isFirstBoot)
   // 4. DECIDIR QUÉ INTERFAZ CARGAR
   if (isFirstBoot)
   {
-    lv_obj_t *pantalla_actual = lv_screen_active();
-    lv_obj_set_style_bg_color(pantalla_actual, lv_color_hex(0xF0F0F0), 0);
-
-    lv_obj_t *etiqueta_prueba = lv_label_create(pantalla_actual);
-    lv_obj_set_style_text_color(etiqueta_prueba, lv_color_hex(0x000000), 0);
-    lv_label_set_text(etiqueta_prueba, "L.E.V.I.\nMODO CONFIGURACION INICIAL");
-    lv_obj_set_style_text_align(etiqueta_prueba, LV_TEXT_ALIGN_CENTER, 0);
-    lv_obj_align(etiqueta_prueba, LV_ALIGN_CENTER, 0, 0);
+    ui_screen_setup_init(); // Llamamos a tu nueva pantalla de configuración
   }
   else
   {
@@ -177,36 +167,33 @@ void ui_loop()
     t0 = t;
   }
 
-  // ---------------------------------------------------------
-  // 1. ACTUALIZAR USUARIO (PROFESOR/PANEL)
-  // ---------------------------------------------------------
-  static String ultimo_usuario_ui = "@@@"; 
-  String usuario_actual = SessionManager::getInstance().hayPanelActivo() ? 
-                          SessionManager::getInstance().getSesionPanel().nombre : "";
+  // Solo consultamos el backend si NO estamos en la pantalla de configuración
+  if (!g_esPrimerInicio) 
+  {
+    // 1. ACTUALIZAR USUARIO
+    static String ultimo_usuario_ui = "@@@"; 
+    String usuario_actual = SessionManager::getInstance().hayPanelActivo() ? 
+                            SessionManager::getInstance().getSesionPanel().nombre : "";
 
-  if (usuario_actual != ultimo_usuario_ui) {
-      ui_update_usuario(usuario_actual.c_str());
-      ultimo_usuario_ui = usuario_actual;
+    if (usuario_actual != ultimo_usuario_ui) {
+        ui_update_usuario(usuario_actual.c_str());
+        ultimo_usuario_ui = usuario_actual;
+    }
+
+    // 2. ACTUALIZAR CÁMARA
+    static bool ultima_camara_ui = false; 
+    static bool primera_vez_camara = true;
+    
+    bool camara_actual = (ultimoPingCamara > 0) && (millis() - ultimoPingCamara < 4000);
+
+    if (camara_actual != ultima_camara_ui || primera_vez_camara) {
+        ui_update_camara(camara_actual);
+        ultima_camara_ui = camara_actual;
+        primera_vez_camara = false;
+    }
   }
 
-  // ---------------------------------------------------------
-  // ACTUALIZAR CÁMARA (Watchdog de 4 segundos)
-  // ---------------------------------------------------------
-  static bool ultima_camara_ui = false; 
-  static bool primera_vez_camara = true;
-  
-  // Si tuvimos un ping en los últimos 4000ms, hay stream activo
-  bool camara_actual = (ultimoPingCamara > 0) && (millis() - ultimoPingCamara < 4000);
-
-  if (camara_actual != ultima_camara_ui || primera_vez_camara) {
-      ui_update_camara(camara_actual);
-      ultima_camara_ui = camara_actual;
-      primera_vez_camara = false;
-  }
-
-  // ---------------------------------------------------------
   // 3. SUSPENSIÓN POR INACTIVIDAD TÁCTIL
-  // ---------------------------------------------------------
   if (screen_awake && (millis() - last_touch_time > TIMEOUT_INACTIVIDAD_MS)) {
     screen_awake = false;
     digitalWrite(BACKLIGHT_PIN, LOW);
