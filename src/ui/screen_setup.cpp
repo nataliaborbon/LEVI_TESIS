@@ -2,6 +2,7 @@
 #include <Arduino.h>
 #include "config/ConfigManager.h"
 
+lv_obj_t * ta_alumno;
 lv_obj_t * ta_clave1;
 lv_obj_t * ta_clave2;
 lv_obj_t * kb;
@@ -72,24 +73,23 @@ static void ta_event_cb(lv_event_t * e) {
 static void btn_guardar_event_cb(lv_event_t * e) {
     lv_event_code_t code = lv_event_get_code(e);
     if(code == LV_EVENT_CLICKED) {
-        String clave1 = lv_textarea_get_text(ta_clave1); // Clave 1 -> rol PROFESOR
-        String clave2 = lv_textarea_get_text(ta_clave2); // Clave 2 -> rol TUTOR
+        String alumno = lv_textarea_get_text(ta_alumno);
+        String clave1 = lv_textarea_get_text(ta_clave1); 
+        String clave2 = lv_textarea_get_text(ta_clave2); 
 
-        if(clave1.length() == 0 || clave2.length() == 0) {
-            Serial.println("[Setup] Error: Las claves no pueden estar vacias.");
+        if(alumno.length() == 0 || clave1.length() == 0 || clave2.length() == 0) {
+            Serial.println("[Setup] Error: Ningun campo puede estar vacio.");
             return; 
         }
 
-        Serial.println("[Setup] Guardando palabras clave via ConfigManager...");
+        Serial.println("[Setup] Guardando datos via ConfigManager...");
 
-        // Usamos ConfigManager para que el namespace/keys reales (levi_cfg,
-        // clave_prof, clave_tutor) queden en un solo lugar y no se desincronicen
-        // con lo que lee clavesConfiguradas().
+        bool ok0 = ConfigManager::getInstance().guardarNombreAlumno(alumno);
         bool ok1 = ConfigManager::getInstance().guardarClaveProfesor(clave1);
         bool ok2 = ConfigManager::getInstance().guardarClaveTutor(clave2);
 
-        if(!ok1 || !ok2) {
-            Serial.println("[Setup] Error al guardar una o ambas claves.");
+        if(!ok0 || !ok1 || !ok2) {
+            Serial.println("[Setup] Error al guardar datos en NVS.");
             return;
         }
 
@@ -136,61 +136,69 @@ void ui_screen_setup_init(void) {
     lv_obj_t * pantalla_actual = lv_screen_active();
     lv_obj_set_style_bg_color(pantalla_actual, lv_color_hex(0x2C3E50), 0); 
 
-    // 1. El Teclado Virtual (Oculto, cuelga del screen -no del formulario-
-    //    para no moverse cuando desplazamos cont_form)
     kb = lv_keyboard_create(pantalla_actual);
     lv_obj_add_flag(kb, LV_OBJ_FLAG_HIDDEN);
 
-    // 2. Contenedor invisible que agrupa título, campos y botón, así se
-    // pueden desplazar juntos como un solo bloque sin tocar el teclado.
     cont_form = lv_obj_create(pantalla_actual);
-    lv_obj_remove_style_all(cont_form); // sin fondo ni borde: totalmente transparente
+    lv_obj_remove_style_all(cont_form); 
     lv_obj_set_size(cont_form, lv_pct(100), lv_pct(100));
     lv_obj_set_pos(cont_form, 0, 0);
-    lv_obj_remove_flag(cont_form, LV_OBJ_FLAG_SCROLLABLE); // lo movemos a mano, no por scroll
+    lv_obj_remove_flag(cont_form, LV_OBJ_FLAG_SCROLLABLE); 
 
-    // 3. Título
+    // 1. Título (Subido un poco)
     lv_obj_t * titulo = lv_label_create(cont_form);
-    lv_label_set_text(titulo, "L.E.V.I. - Configurar Claves");
+    lv_label_set_text(titulo, "L.E.V.I. - Configurar Sistema");
     lv_obj_set_style_text_color(titulo, lv_color_hex(0xFFFFFF), 0);
     lv_obj_set_style_text_font(titulo, &lv_font_montserrat_18, 0);
-    lv_obj_align(titulo, LV_ALIGN_TOP_MID, 0, 10);
+    lv_obj_align(titulo, LV_ALIGN_TOP_MID, 0, 5);
 
-    // 4. Etiqueta + Input: Clave Profesor (centrados horizontalmente)
+    // 2. NUEVO: Etiqueta + Input Alumno
+    lv_obj_t * lbl_alumno_titulo = lv_label_create(cont_form);
+    lv_label_set_text(lbl_alumno_titulo, "Nombre del Alumno:");
+    lv_obj_set_style_text_color(lbl_alumno_titulo, lv_color_hex(0xFFFFFF), 0);
+    lv_obj_align(lbl_alumno_titulo, LV_ALIGN_TOP_MID, 0, 30);
+
+    ta_alumno = lv_textarea_create(cont_form);
+    lv_textarea_set_one_line(ta_alumno, true);
+    lv_textarea_set_placeholder_text(ta_alumno, "Ej: Juan Perez");
+    lv_obj_set_width(ta_alumno, 220);
+    lv_obj_align(ta_alumno, LV_ALIGN_TOP_MID, 0, 45);
+    lv_obj_add_event_cb(ta_alumno, ta_event_cb, LV_EVENT_ALL, NULL);
+
+    // 3. Etiqueta + Input Clave Profesor
     lv_obj_t * lbl_clave1_titulo = lv_label_create(cont_form);
     lv_label_set_text(lbl_clave1_titulo, "Clave Profesor:");
     lv_obj_set_style_text_color(lbl_clave1_titulo, lv_color_hex(0xFFFFFF), 0);
-    lv_obj_align(lbl_clave1_titulo, LV_ALIGN_TOP_MID, 0, 40);
+    lv_obj_align(lbl_clave1_titulo, LV_ALIGN_TOP_MID, 0, 85);
 
     ta_clave1 = lv_textarea_create(cont_form);
     lv_textarea_set_one_line(ta_clave1, true);
     lv_textarea_set_password_mode(ta_clave1, true);
     lv_textarea_set_placeholder_text(ta_clave1, "Clave Profesor");
     lv_obj_set_width(ta_clave1, 220);
-    lv_obj_align(ta_clave1, LV_ALIGN_TOP_MID, 0, 60);
+    lv_obj_align(ta_clave1, LV_ALIGN_TOP_MID, 0, 100);
     lv_obj_add_event_cb(ta_clave1, ta_event_cb, LV_EVENT_ALL, NULL);
     agregar_boton_ojo(cont_form, ta_clave1);
 
-    // 5. Etiqueta + Input: Clave Tutor (centrados, debajo del anterior)
+    // 4. Etiqueta + Input Clave Tutor
     lv_obj_t * lbl_clave2_titulo = lv_label_create(cont_form);
     lv_label_set_text(lbl_clave2_titulo, "Clave Tutor:");
     lv_obj_set_style_text_color(lbl_clave2_titulo, lv_color_hex(0xFFFFFF), 0);
-    lv_obj_align(lbl_clave2_titulo, LV_ALIGN_TOP_MID, 0, 110);
+    lv_obj_align(lbl_clave2_titulo, LV_ALIGN_TOP_MID, 0, 140);
 
     ta_clave2 = lv_textarea_create(cont_form);
     lv_textarea_set_one_line(ta_clave2, true);
     lv_textarea_set_password_mode(ta_clave2, true);
     lv_textarea_set_placeholder_text(ta_clave2, "Clave Tutor");
     lv_obj_set_width(ta_clave2, 220);
-    lv_obj_align(ta_clave2, LV_ALIGN_TOP_MID, 0, 130);
+    lv_obj_align(ta_clave2, LV_ALIGN_TOP_MID, 0, 155);
     lv_obj_add_event_cb(ta_clave2, ta_event_cb, LV_EVENT_ALL, NULL);
     agregar_boton_ojo(cont_form, ta_clave2);
 
-    // 6. Botón Guardar: rectangular, centrado, debajo de los dos campos
-    // (estilo botón de "Iniciar sesión" de cualquier app de credenciales)
+    // 5. Botón Guardar
     btn_guardar = lv_button_create(cont_form);
-    lv_obj_set_size(btn_guardar, 200, 45);
-    lv_obj_align(btn_guardar, LV_ALIGN_TOP_MID, 0, 185);
+    lv_obj_set_size(btn_guardar, 200, 40);
+    lv_obj_align(btn_guardar, LV_ALIGN_TOP_MID, 0, 195);
     lv_obj_add_event_cb(btn_guardar, btn_guardar_event_cb, LV_EVENT_ALL, NULL);
 
     lv_obj_t * lbl_btn = lv_label_create(btn_guardar);

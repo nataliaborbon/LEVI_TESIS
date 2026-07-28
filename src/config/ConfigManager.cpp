@@ -36,7 +36,10 @@ bool ConfigManager::_guardar(const char* key, const String& valor) {
 bool ConfigManager::clavesConfiguradas() {
     Preferences prefs;
     prefs.begin(NVS_NAMESPACE, true);
-    bool ok = prefs.isKey(KEY_CLAVE_PROFESOR) && prefs.isKey(KEY_CLAVE_TUTOR);
+    // Ahora exige que existan las 3 variables
+    bool ok = prefs.isKey(KEY_CLAVE_PROFESOR) && 
+              prefs.isKey(KEY_CLAVE_TUTOR) && 
+              prefs.isKey(KEY_NOMBRE_ALUMNO); 
     prefs.end();
     return ok;
 }
@@ -85,4 +88,12 @@ bool ConfigManager::verificarClavePorRol(const String& clave, const String& rol)
     if (rol == "profesor") return verificarClaveProfesor(clave);
     if (rol == "tutor")    return verificarClaveTutor(clave);
     return false;
+}
+
+bool ConfigManager::guardarNombreAlumno(const String& nombre) {
+    return _guardar(KEY_NOMBRE_ALUMNO, nombre);
+}
+
+String ConfigManager::leerNombreAlumno() {
+    return _leer(KEY_NOMBRE_ALUMNO);
 }

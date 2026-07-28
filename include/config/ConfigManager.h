@@ -93,6 +93,20 @@ public:
      */
     bool verificarClavePorRol(const String& clave, const String& rol);
 
+
+    /**
+     * @brief Guarda el nombre del alumno en NVS.
+     * @param nombre Nombre del alumno a guardar.
+     * @return true si se guardó correctamente.
+     */
+    bool guardarNombreAlumno(const String& nombre);
+
+    /**
+     * @brief Lee el nombre del alumno desde NVS.
+     * @return Nombre del alumno, o cadena vacía si no existe.
+     */
+    String leerNombreAlumno();
+
 private:
     ConfigManager() {}
     ConfigManager(const ConfigManager&)            = delete;
@@ -106,6 +120,9 @@ private:
 
     /// @brief Clave NVS para la clave maestra de tutores.
     static constexpr const char* KEY_CLAVE_TUTOR    = "clave_tutor";
+
+    /// @brief Clave NVS para el nombre del alumno.
+    static constexpr const char* KEY_NOMBRE_ALUMNO  = "nombre_alumno";
 
     /**
      * @brief Lee una clave del NVS por su key interna.

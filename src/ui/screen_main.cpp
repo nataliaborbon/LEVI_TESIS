@@ -1,5 +1,7 @@
 #include "ui/screens.h"
 #include <string.h>
+#include <Arduino.h>                 
+#include "config/ConfigManager.h"
 
 // Variables globales para poder modificarlas luego desde el backend
 lv_obj_t * tv_main;
@@ -88,7 +90,15 @@ void ui_screen_main_init() {
   lv_obj_align(lbl_alumno_titulo, LV_ALIGN_TOP_LEFT, 20, 60);
 
   lbl_alumno_main = lv_label_create(tile2);
-  lv_label_set_text(lbl_alumno_main, "No registrado");
+
+  // Leemos de la memoria (NVS) el nombre que guardamos en el setup
+  String nombreGuardado = ConfigManager::getInstance().leerNombreAlumno();
+  if (nombreGuardado.length() > 0) {
+      lv_label_set_text(lbl_alumno_main, nombreGuardado.c_str());
+  } else {
+      lv_label_set_text(lbl_alumno_main, "No registrado");
+  }
+
   lv_obj_set_style_text_font(lbl_alumno_main, fuente_datos, 0);
   lv_obj_align_to(lbl_alumno_main, lbl_alumno_titulo, LV_ALIGN_OUT_RIGHT_MID, 5, 0);
 
