@@ -1,12 +1,28 @@
 #include "services/RespuestaService.h"
 #include "storage/database/repositories/CuestionarioRepository.h"
 #include "storage/database/repositories/PreguntaOpcionRepository.h"
+#include <string.h>
 
 SesionResult RespuestaService::iniciarSesion() {
     return SessionManager::getInstance().iniciarSesionAlumno();
 }
 
 EstadoAlumno RespuestaService::obtenerEstado() {
+    EstadoAlumno estado = _calcularEstado();
+    _actualizarResumenCache(estado);
+    return estado;
+}
+
+void RespuestaService::_actualizarResumenCache(const EstadoAlumno& estado) {
+    strncpy(_resumenCache.estado, estado.estado.c_str(), sizeof(_resumenCache.estado) - 1);
+    _resumenCache.estado[sizeof(_resumenCache.estado) - 1] = '\0';
+    _resumenCache.numeroPregunta = estado.hayPregunta ? estado.pregunta.numeroPregunta : 0;
+    _resumenCache.totalPreguntas = estado.hayPregunta ? estado.pregunta.totalPreguntas : 0;
+    strncpy(_resumenCache.tituloCuestionario, estado.tituloCuestionario.c_str(), sizeof(_resumenCache.tituloCuestionario) - 1);
+    _resumenCache.tituloCuestionario[sizeof(_resumenCache.tituloCuestionario) - 1] = '\0';
+}
+
+EstadoAlumno RespuestaService::_calcularEstado() {
     EstadoAlumno estado;
 
     // Verificar primero si hay un invitado activo con pregunta en RAM
@@ -16,6 +32,7 @@ EstadoAlumno RespuestaService::obtenerEstado() {
         if (pregInv.cargada) {
             estado.estado      = "invitado";
             estado.hayPregunta = true;
+            estado.tituloCuestionario = "Modo Invitado";
 
             estado.pregunta.idPregunta     = 0;
             estado.pregunta.textoPregunta  = pregInv.textoOpregunta;
@@ -40,6 +57,8 @@ EstadoAlumno RespuestaService::obtenerEstado() {
         estado.estado = "esperando";
         return estado;
     }
+
+    estado.tituloCuestionario = activo.titulo;
 
     if (activo.estado == "pausado") {
         estado.estado = "pausado";

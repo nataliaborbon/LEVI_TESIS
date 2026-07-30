@@ -9,7 +9,9 @@ lv_obj_t * lbl_alumno_main;
 lv_obj_t * lbl_usuario_main;
 lv_obj_t * lbl_camara_main;
 lv_obj_t * lbl_disp_main;
-lv_obj_t * lbl_estado_examen_main;
+lv_obj_t * lbl_esperando_examen;
+lv_obj_t * lbl_titulo_examen;
+lv_obj_t * lbl_progreso_titulo;
 lv_obj_t * lbl_progreso_main;
 
 // --- Función para actualizar el Usuario desde el backend ---
@@ -40,6 +42,39 @@ void ui_update_camara(bool lista) {
       lv_obj_set_style_text_color(lbl_camara_main, lv_color_hex(0xe74c3c), 0); // Rojo
     }
   }
+}
+
+// --- Función para actualizar la Pantalla de Examen ---
+void ui_update_examen(const char * estado, const char * titulo, int numeroPregunta, int totalPreguntas) {
+    if (!lbl_esperando_examen) return;
+
+    String estadoStr = estado;
+
+    if (estadoStr == "esperando" || estadoStr == "sin_sesion") {
+        // 1. Mostrar texto rojo gigante
+        lv_obj_remove_flag(lbl_esperando_examen, LV_OBJ_FLAG_HIDDEN);
+        
+        // 2. Ocultar título y progreso
+        lv_obj_add_flag(lbl_titulo_examen, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_add_flag(lbl_progreso_titulo, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_add_flag(lbl_progreso_main, LV_OBJ_FLAG_HIDDEN);
+    } else {
+        // 1. Ocultar texto rojo gigante
+        lv_obj_add_flag(lbl_esperando_examen, LV_OBJ_FLAG_HIDDEN);
+        
+        // 2. Mostrar título y progreso
+        lv_obj_remove_flag(lbl_titulo_examen, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_remove_flag(lbl_progreso_titulo, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_remove_flag(lbl_progreso_main, LV_OBJ_FLAG_HIDDEN);
+
+        // 3. Actualizar los datos
+        if (strlen(titulo) > 0) {
+            lv_label_set_text_fmt(lbl_titulo_examen, "Examen:\n\"%s\"", titulo);
+        } else {
+            lv_label_set_text(lbl_titulo_examen, "Examen:\n\"-\"");
+        }
+        lv_label_set_text_fmt(lbl_progreso_main, "%d/%d", numeroPregunta, totalPreguntas);
+    }
 }
 
 void ui_screen_main_init() {
@@ -141,31 +176,33 @@ void ui_screen_main_init() {
   lv_obj_t * tile3 = lv_tileview_add_tile(tv_main, 2, 0, LV_DIR_HOR);
   lv_obj_set_style_bg_color(tile3, lv_color_hex(0xF0F0F0), 0);
 
-  lv_obj_t * titulo_examen = lv_label_create(tile3);
-  lv_label_set_text(titulo_examen, "Examen\n\"Cuestionario X\"");
-  lv_obj_set_style_text_align(titulo_examen, LV_TEXT_ALIGN_CENTER, 0);
-  lv_obj_set_style_text_font(titulo_examen, &lv_font_montserrat_18, 0);
-  lv_obj_align(titulo_examen, LV_ALIGN_TOP_MID, 0, 15);
+  // --- VISTA 1: ESPERANDO (Centrado, Rojo, Grande) ---
+  lbl_esperando_examen = lv_label_create(tile3);
+  lv_label_set_text(lbl_esperando_examen, "Esperando\ncuestionario");
+  lv_obj_set_style_text_align(lbl_esperando_examen, LV_TEXT_ALIGN_CENTER, 0);
+  lv_obj_set_style_text_font(lbl_esperando_examen, &lv_font_montserrat_20, 0);
+  lv_obj_set_style_text_color(lbl_esperando_examen, lv_color_hex(0xe74c3c), 0);
+  lv_obj_align(lbl_esperando_examen, LV_ALIGN_CENTER, 0, 0);
 
-  // --- ESTADO EXAMEN ---
-  lv_obj_t * lbl_estado_examen_titulo = lv_label_create(tile3);
-  lv_label_set_text(lbl_estado_examen_titulo, "Estado: ");
-  lv_obj_set_style_text_font(lbl_estado_examen_titulo, fuente_datos, 0);
-  lv_obj_align(lbl_estado_examen_titulo, LV_ALIGN_TOP_LEFT, 20, 90);
+  // --- VISTA 2: EXAMEN ACTIVO (Ocultos por defecto) ---
+  lbl_titulo_examen = lv_label_create(tile3);
+  lv_label_set_text(lbl_titulo_examen, "Examen:\n\"-\"");
+  lv_obj_set_style_text_align(lbl_titulo_examen, LV_TEXT_ALIGN_CENTER, 0);
+  lv_obj_set_style_text_font(lbl_titulo_examen, &lv_font_montserrat_18, 0);
+  lv_obj_set_width(lbl_titulo_examen, 180);
+  lv_label_set_long_mode(lbl_titulo_examen, LV_LABEL_LONG_WRAP);
+  lv_obj_align(lbl_titulo_examen, LV_ALIGN_TOP_MID, 0, 25);
+  lv_obj_add_flag(lbl_titulo_examen, LV_OBJ_FLAG_HIDDEN); // Oculto
 
-  lbl_estado_examen_main = lv_label_create(tile3);
-  lv_label_set_text(lbl_estado_examen_main, "Pendiente");
-  lv_obj_set_style_text_font(lbl_estado_examen_main, fuente_datos, 0);
-  lv_obj_align_to(lbl_estado_examen_main, lbl_estado_examen_titulo, LV_ALIGN_OUT_RIGHT_MID, 5, 0);
-
-  // --- PROGRESO ---
-  lv_obj_t * lbl_progreso_titulo = lv_label_create(tile3);
+  lbl_progreso_titulo = lv_label_create(tile3);
   lv_label_set_text(lbl_progreso_titulo, "Progreso: ");
   lv_obj_set_style_text_font(lbl_progreso_titulo, fuente_datos, 0);
-  lv_obj_align(lbl_progreso_titulo, LV_ALIGN_TOP_LEFT, 20, 150);
+  lv_obj_align(lbl_progreso_titulo, LV_ALIGN_LEFT_MID, 20, 30);
+  lv_obj_add_flag(lbl_progreso_titulo, LV_OBJ_FLAG_HIDDEN); // Oculto
 
   lbl_progreso_main = lv_label_create(tile3);
   lv_label_set_text(lbl_progreso_main, "0/0");
   lv_obj_set_style_text_font(lbl_progreso_main, fuente_datos, 0);
   lv_obj_align_to(lbl_progreso_main, lbl_progreso_titulo, LV_ALIGN_OUT_RIGHT_MID, 5, 0);
+  lv_obj_add_flag(lbl_progreso_main, LV_OBJ_FLAG_HIDDEN); // Oculto
 }

@@ -10,6 +10,7 @@
 #include "network/WiFiAP.h"
 #include "network/WebServer.h"
 #include "session/SessionManager.h"
+#include "services/RespuestaService.h"
 #include "ui/screens.h"
 #include "ui/ui_manager.h"
 
@@ -48,12 +49,13 @@ void setup()
     // El namespace real que usa ConfigManager es "levi_cfg" (ver ConfigManager.h),
     // no "config". Si en algún momento necesitás forzar el primer arranque para
     // pruebas, descomentá estas 3 líneas, flasheá UNA vez, y volvé a comentarlas
-    // antes de la versión final
-
-    //Preferences pref;
-    //pref.begin("levi_cfg", false);
-    //pref.clear();
-    //pref.end();
+    // antes de la versión final (o mejor: agregá un método
+    // ConfigManager::resetearClaves() y llamalo desde acá).
+    //
+    // Preferences pref;
+    // pref.begin("levi_cfg", false);
+    // pref.clear();
+    // pref.end();
 
     // 2. Revisar Configuración de Claves
     if (!ConfigManager::getInstance().clavesConfiguradas())
@@ -116,6 +118,9 @@ void loop()
             SessionManager::getInstance().tick();
             int clientesConectados = WiFi.softAPgetStationNum();
             ui_update_dispositivos(clientesConectados);
+
+            EstadoExamenResumen resumenExamen = RespuestaService::getInstance().obtenerResumenCacheado();
+            ui_update_examen(resumenExamen.estado, resumenExamen.tituloCuestionario, resumenExamen.numeroPregunta, resumenExamen.totalPreguntas);
         }
     }
 
