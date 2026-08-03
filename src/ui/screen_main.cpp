@@ -4,7 +4,6 @@
 #include "config/ConfigManager.h"
 #include "images/qr_levi_local.c"
 
-// Variables globales para poder modificarlas luego desde el backend
 lv_obj_t * tv_main;
 lv_obj_t * lbl_alumno_main;
 lv_obj_t * lbl_usuario_main;
@@ -15,7 +14,6 @@ lv_obj_t * lbl_titulo_examen;
 lv_obj_t * lbl_progreso_titulo;
 lv_obj_t * lbl_progreso_main;
 
-// --- Función para actualizar el Usuario desde el backend ---
 void ui_update_usuario(const char * nombre) {
   if(lbl_usuario_main) {
     if (strlen(nombre) == 0) {
@@ -32,43 +30,33 @@ void ui_update_dispositivos(int cantidad) {
   }
 }
 
-// --- Función para actualizar la Cámara ---
 void ui_update_camara(bool lista) {
   if(lbl_camara_main) {
     if (lista) {
       lv_label_set_text(lbl_camara_main, "Transmitiendo");
-      lv_obj_set_style_text_color(lbl_camara_main, lv_color_hex(0x2ecc71), 0); // Verde
+      lv_obj_set_style_text_color(lbl_camara_main, lv_color_hex(0x2ecc71), 0); 
     } else {
       lv_label_set_text(lbl_camara_main, "Desconectada");
-      lv_obj_set_style_text_color(lbl_camara_main, lv_color_hex(0xe74c3c), 0); // Rojo
+      lv_obj_set_style_text_color(lbl_camara_main, lv_color_hex(0xe74c3c), 0); 
     }
   }
 }
 
-// --- Función para actualizar la Pantalla de Examen ---
 void ui_update_examen(const char * estado, const char * titulo, int numeroPregunta, int totalPreguntas) {
     if (!lbl_esperando_examen) return;
 
     String estadoStr = estado;
 
     if (estadoStr == "esperando" || estadoStr == "sin_sesion") {
-        // 1. Mostrar texto rojo gigante
         lv_obj_remove_flag(lbl_esperando_examen, LV_OBJ_FLAG_HIDDEN);
-        
-        // 2. Ocultar título y progreso
         lv_obj_add_flag(lbl_titulo_examen, LV_OBJ_FLAG_HIDDEN);
         lv_obj_add_flag(lbl_progreso_titulo, LV_OBJ_FLAG_HIDDEN);
         lv_obj_add_flag(lbl_progreso_main, LV_OBJ_FLAG_HIDDEN);
     } else {
-        // 1. Ocultar texto rojo gigante
         lv_obj_add_flag(lbl_esperando_examen, LV_OBJ_FLAG_HIDDEN);
-        
-        // 2. Mostrar título y progreso
         lv_obj_remove_flag(lbl_titulo_examen, LV_OBJ_FLAG_HIDDEN);
         lv_obj_remove_flag(lbl_progreso_titulo, LV_OBJ_FLAG_HIDDEN);
         lv_obj_remove_flag(lbl_progreso_main, LV_OBJ_FLAG_HIDDEN);
-
-        // 3. Actualizar los datos
         if (strlen(titulo) > 0) {
             lv_label_set_text_fmt(lbl_titulo_examen, "Examen:\n\"%s\"", titulo);
         } else {
@@ -122,7 +110,6 @@ void ui_screen_main_init() {
 
   lbl_alumno_main = lv_label_create(tile2);
 
-  // Leemos de la memoria (NVS) el nombre que guardamos en el setup
   String nombreGuardado = ConfigManager::getInstance().leerNombreAlumno();
   if (nombreGuardado.length() > 0) {
       lv_label_set_text(lbl_alumno_main, nombreGuardado.c_str());
@@ -172,7 +159,7 @@ void ui_screen_main_init() {
   lv_obj_t * tile3 = lv_tileview_add_tile(tv_main, 2, 0, LV_DIR_HOR);
   lv_obj_set_style_bg_color(tile3, lv_color_hex(0xF0F0F0), 0);
 
-  // --- VISTA 1: ESPERANDO (Centrado, Rojo, Grande) ---
+  // --- VISTA 1: ESPERANDO ---
   lbl_esperando_examen = lv_label_create(tile3);
   lv_label_set_text(lbl_esperando_examen, "Esperando\ncuestionario");
   lv_obj_set_style_text_align(lbl_esperando_examen, LV_TEXT_ALIGN_CENTER, 0);
@@ -180,7 +167,7 @@ void ui_screen_main_init() {
   lv_obj_set_style_text_color(lbl_esperando_examen, lv_color_hex(0xe74c3c), 0);
   lv_obj_align(lbl_esperando_examen, LV_ALIGN_CENTER, 0, 0);
 
-  // --- VISTA 2: EXAMEN ACTIVO (Ocultos por defecto) ---
+  // --- VISTA 2: EXAMEN ACTIVO ---
   lbl_titulo_examen = lv_label_create(tile3);
   lv_label_set_text(lbl_titulo_examen, "Examen:\n\"-\"");
   lv_obj_set_style_text_align(lbl_titulo_examen, LV_TEXT_ALIGN_CENTER, 0);
@@ -188,17 +175,17 @@ void ui_screen_main_init() {
   lv_obj_set_width(lbl_titulo_examen, 180);
   lv_label_set_long_mode(lbl_titulo_examen, LV_LABEL_LONG_WRAP);
   lv_obj_align(lbl_titulo_examen, LV_ALIGN_TOP_MID, 0, 25);
-  lv_obj_add_flag(lbl_titulo_examen, LV_OBJ_FLAG_HIDDEN); // Oculto
+  lv_obj_add_flag(lbl_titulo_examen, LV_OBJ_FLAG_HIDDEN); 
 
   lbl_progreso_titulo = lv_label_create(tile3);
   lv_label_set_text(lbl_progreso_titulo, "Progreso: ");
   lv_obj_set_style_text_font(lbl_progreso_titulo, fuente_datos, 0);
   lv_obj_align(lbl_progreso_titulo, LV_ALIGN_LEFT_MID, 20, 30);
-  lv_obj_add_flag(lbl_progreso_titulo, LV_OBJ_FLAG_HIDDEN); // Oculto
+  lv_obj_add_flag(lbl_progreso_titulo, LV_OBJ_FLAG_HIDDEN); 
 
   lbl_progreso_main = lv_label_create(tile3);
   lv_label_set_text(lbl_progreso_main, "0/0");
   lv_obj_set_style_text_font(lbl_progreso_main, fuente_datos, 0);
   lv_obj_align_to(lbl_progreso_main, lbl_progreso_titulo, LV_ALIGN_OUT_RIGHT_MID, 5, 0);
-  lv_obj_add_flag(lbl_progreso_main, LV_OBJ_FLAG_HIDDEN); // Oculto
+  lv_obj_add_flag(lbl_progreso_main, LV_OBJ_FLAG_HIDDEN); 
 }

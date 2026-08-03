@@ -84,6 +84,20 @@ static void handleAlumnoResponder(AsyncWebServerRequest* request, uint8_t* data,
         return;
     }
 
+    // --- NUEVO: EL DESVÍO EN RAM PARA EL INVITADO ---
+    if (idPregunta == 0) {
+        // Al responder la pregunta del invitado, la limpiamos de la RAM de inmediato.
+        // Asegurate de que el método limpiarPreguntaInvitado() exista en tu SessionManager.h
+        SessionManager::getInstance().limpiarPreguntaInvitado(); 
+        
+        // Devolvemos un flag especial para que React sepa qué hacer
+        String json = "{\"ok\":true,\"esInvitado\":true}";
+        enviarJSON(request, 200, json);
+        return;
+    }
+    // ------------------------------------------------
+
+    // Si no es el invitado (ID > 0), sigue el flujo normal hacia la SD/Flash
     RespuestaResult result = RespuestaService::getInstance()
                              .responder(idPregunta, idOpcion);
 

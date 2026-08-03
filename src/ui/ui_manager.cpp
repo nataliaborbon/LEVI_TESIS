@@ -15,19 +15,19 @@
 #define XPT2046_CLK 25
 #define XPT2046_CS 33
 
-// Configuración de la Suspensión ---
+// Configuración de la Suspensión
 #define BACKLIGHT_PIN 21
-#define TIMEOUT_INACTIVIDAD_MS 60000 // 60 segundos (1 minuto)
+#define TIMEOUT_INACTIVIDAD_MS 60000
 
 static uint32_t last_touch_time = 0;
 static bool screen_awake = true;
 
 extern unsigned long ultimoPingCamara;
-extern bool g_esPrimerInicio; // Traemos la variable del main.cpp
+extern bool g_esPrimerInicio; 
 
 TFT_eSPI tft = TFT_eSPI();
 
-// Buffer alineado en memoria para LVGL 9
+
 __attribute__((aligned(16))) static uint8_t draw_buf[SCREEN_WIDTH * SCREEN_HEIGHT / 20 * 2];
 
 // =========================================================
@@ -147,7 +147,7 @@ void ui_init(bool isFirstBoot)
   // 4. DECIDIR QUÉ INTERFAZ CARGAR
   if (isFirstBoot)
   {
-    ui_screen_setup_init(); // Llamamos a tu nueva pantalla de configuración
+    ui_screen_setup_init(); 
   }
   else
   {
@@ -167,7 +167,6 @@ void ui_loop()
     t0 = t;
   }
 
-  // Solo consultamos el backend si NO estamos en la pantalla de configuración
   if (!g_esPrimerInicio) 
   {
     // 1. ACTUALIZAR USUARIO

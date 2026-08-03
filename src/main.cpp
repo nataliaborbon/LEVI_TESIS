@@ -21,7 +21,6 @@ const int LED_ROJO = 4;
 const int LED_VERDE = 16;
 const int LED_AZUL = 17;
 
-// Variable global para que el loop sepa si estamos en modo configuración
 bool g_esPrimerInicio = false; 
 
 void setup()
@@ -45,12 +44,8 @@ void setup()
     }
     Serial.println("[Main] LittleFS montado.");
 
-    // --- BLOQUE DE BORRADO DE PRUEBA (deshabilitado) ---
-    // El namespace real que usa ConfigManager es "levi_cfg" (ver ConfigManager.h),
-    // no "config". Si en algún momento necesitás forzar el primer arranque para
-    // pruebas, descomentá estas 3 líneas, flasheá UNA vez, y volvé a comentarlas
-    // antes de la versión final (o mejor: agregá un método
-    // ConfigManager::resetearClaves() y llamalo desde acá).
+    // --- BLOQUE DE BORRADO DE PRUEBA ---
+    // Descomentar estas 4 líneas, subir el codigo, comentar y volver a subir para entrar en modo boot
     //
     // Preferences pref;
     // pref.begin("levi_cfg", false);
@@ -68,15 +63,14 @@ void setup()
         Serial.println("[Main] Claves maestras encontradas en memoria.");
     }
 
-    // 3. INICIALIZAR LA PANTALLA TÁCTIL (CYD)
+    // 3. Inicializar pantalla táctil (CYD)
     ui_init(g_esPrimerInicio);
     Serial.println("[Main] Pantalla inicializada.");
 
-    // 4. EL FRENO DE MANO
+    // 4. Pantalla de booteo
     if (g_esPrimerInicio)
     {
         Serial.println("[Main] MODO CONFIGURACIÓN: Deteniendo arranque de periféricos.");
-        // Cortamos el setup acá. 
         return; 
     }
 
@@ -109,7 +103,6 @@ void loop()
 {
     unsigned long ahora = millis();
 
-    // Solo ejecutamos la lógica de red si NO estamos en la pantalla de primer inicio
     if (!g_esPrimerInicio)
     {
         if (ahora - _ultimoTick >= TICK_INTERVAL_MS)
@@ -123,7 +116,5 @@ void loop()
             ui_update_examen(resumenExamen.estado, resumenExamen.tituloCuestionario, resumenExamen.numeroPregunta, resumenExamen.totalPreguntas);
         }
     }
-
-    // Tareas de la interfaz gráfica (esto debe correr SIEMPRE para que funcione el touch)
     ui_loop();
 }

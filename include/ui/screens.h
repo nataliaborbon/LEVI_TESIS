@@ -15,10 +15,10 @@ void ui_update_usuario(const char * nombre);
 // Funcion para detectar dispositivos
 void ui_update_dispositivos(int cantidad);
 
-// --- Función para actualizar la Cámara ---
+// Función para actualizar la Cámara
 void ui_update_camara(bool lista);
 
-// Función para actualizar el examen (oculta/muestra elementos según el estado)
+// Función para actualizar el examen
 void ui_update_examen(const char * estado, const char * titulo, int numeroPregunta, int totalPreguntas);
 
 #endif
