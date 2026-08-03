@@ -2,6 +2,7 @@
 #include <string.h>
 #include <Arduino.h>                 
 #include "config/ConfigManager.h"
+#include "images/qr_levi_local.c"
 
 // Variables globales para poder modificarlas luego desde el backend
 lv_obj_t * tv_main;
@@ -61,14 +62,9 @@ void ui_screen_main_init() {
   lv_color_t color_oscuro = lv_color_hex(0x000000);
   lv_color_t color_claro = lv_color_hex(0xFFFFFF);
 
-  lv_obj_t * qr = lv_qrcode_create(tile1);
-  lv_qrcode_set_size(qr, 130);
-  lv_qrcode_set_dark_color(qr, color_oscuro);
-  lv_qrcode_set_light_color(qr, color_claro);
-  lv_qrcode_update(qr, "levi.local", strlen("levi.local"));
-  lv_obj_set_style_border_color(qr, color_oscuro, 0);
-  lv_obj_set_style_border_width(qr, 3, 0);
-  lv_obj_align_to(qr, etiqueta_bienvenida, LV_ALIGN_OUT_BOTTOM_MID, 0, 15);
+  lv_obj_t * qr_img = lv_image_create(tile1);
+  lv_image_set_src(qr_img, &qr_levi_local);
+  lv_obj_align_to(qr_img, etiqueta_bienvenida, LV_ALIGN_OUT_BOTTOM_MID, 0, 12);
 
   // ==========================================
   // PANTALLA 2: ESTADO SISTEMA (Columna 1, Fila 0)
