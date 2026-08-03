@@ -18,4 +18,7 @@ void ui_update_dispositivos(int cantidad);
 // --- Función para actualizar la Cámara ---
 void ui_update_camara(bool lista);
 
+// Función para actualizar el examen (oculta/muestra elementos según el estado)
+void ui_update_examen(const char * estado, const char * titulo, int numeroPregunta, int totalPreguntas);
+
 #endif

@@ -22,6 +22,7 @@
 struct EstadoAlumno {
     String estado          = "esperando"; // "esperando"|"en_progreso"|"pausado"|"finalizado"|"invitado"
     bool   hayPregunta     = false;
+    String tituloCuestionario = "";
 
     // Datos de la pregunta actual (si hay)
     PreguntaAlumno pregunta;
@@ -41,6 +42,26 @@ struct RespuestaResult {
     bool   fueCorrecto = false;
     bool   finalizo    = false; // true si era la última pregunta
     String mensaje     = "";
+};
+
+/**
+ * @brief Snapshot liviano del último estado calculado por obtenerEstado().
+ *
+ * Se actualiza como efecto secundario cada vez que alguien llama a
+ * obtenerEstado() (hoy: el handler HTTP de /api/alumno/estado, que ya
+ * corre en la tarea del webserver). NO dispara ninguna consulta nueva a
+ * la base — es solo una copia en RAM para que loop() en main.cpp pueda
+ * leerla sin tocar la SD/SQLite desde una segunda tarea.
+ *
+ * Usa char[] en vez de String a propósito: son campos que se leen desde
+ * otra tarea sin mutex, y un char[] fijo es más simple de copiar sin
+ * riesgo que un String (que internamente maneja un puntero a heap).
+ */
+struct EstadoExamenResumen {
+    char estado[16]     = "esperando";
+    int  numeroPregunta = 0;
+    int  totalPreguntas = 0;
+    char tituloCuestionario[64] = "";
 };
 
 class RespuestaService {
@@ -74,6 +95,18 @@ public:
     EstadoAlumno obtenerEstado();
 
     /**
+     * @brief Devuelve el último estado calculado, SIN tocar la base.
+     *
+     * Es una simple lectura de RAM (se actualiza como efecto secundario
+     * dentro de obtenerEstado()). Pensado para que main.cpp lo use en su
+     * tick de 1s para alimentar la pantalla del CYD, sin generar una
+     * segunda consulta a la SD/SQLite desde otra tarea.
+     *
+     * @return Copia del último EstadoExamenResumen conocido.
+     */
+    EstadoExamenResumen obtenerResumenCacheado() const { return _resumenCache; }
+
+    /**
      * @brief Registra la respuesta del alumno a la pregunta actual.
      *
      * Si es modo normal: guarda idOpcionElegida en BD y evalúa si fue correcta.
@@ -89,6 +122,14 @@ private:
     RespuestaService() {}
     RespuestaService(const RespuestaService&)            = delete;
     RespuestaService& operator=(const RespuestaService&) = delete;
+
+    /// @brief Lógica real de obtenerEstado() (sin tocar el cache).
+    EstadoAlumno _calcularEstado();
+
+    /// @brief Actualiza _resumenCache a partir de un EstadoAlumno recién calculado.
+    void _actualizarResumenCache(const EstadoAlumno& estado);
+
+    EstadoExamenResumen _resumenCache;
 };
 
 #endif // RESPUESTA_SERVICE_H
