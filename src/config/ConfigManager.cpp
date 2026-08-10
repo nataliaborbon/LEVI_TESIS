@@ -1,7 +1,7 @@
 #include "config/ConfigManager.h"
 
 // ---------------------------------------------------------------------------
-// Helpers privados
+// Helpers
 // ---------------------------------------------------------------------------
 
 String ConfigManager::_leer(const char* key) {
@@ -36,7 +36,6 @@ bool ConfigManager::_guardar(const char* key, const String& valor) {
 bool ConfigManager::clavesConfiguradas() {
     Preferences prefs;
     prefs.begin(NVS_NAMESPACE, true);
-    // Ahora exige que existan las 3 variables
     bool ok = prefs.isKey(KEY_CLAVE_PROFESOR) && 
               prefs.isKey(KEY_CLAVE_TUTOR) && 
               prefs.isKey(KEY_NOMBRE_ALUMNO); 

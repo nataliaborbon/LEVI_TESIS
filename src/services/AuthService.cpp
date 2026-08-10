@@ -50,26 +50,22 @@ bool AuthService::verificarPassword(const String& password, const String& salt,
 AuthResult AuthService::login(const String& nombreUsuario, const String& password) {
     AuthResult result;
 
-    // Validación básica de campos
     if (nombreUsuario.length() == 0 || password.length() == 0) {
         result.mensaje = "Usuario y contraseña son obligatorios.";
         return result;
     }
 
-    // Buscar usuario en BD
     Usuario u = UsuarioRepository::getInstance().buscarPorUsuario(nombreUsuario);
     if (u.idUsuario == 0) {
         result.mensaje = "Usuario o contraseña incorrectos.";
         return result;
     }
 
-    // Verificar contraseña
     if (!verificarPassword(password, u.salt, u.hashPassword)) {
         result.mensaje = "Usuario o contraseña incorrectos.";
         return result;
     }
 
-    // Intentar crear sesión panel
     SesionResult sesion = SessionManager::getInstance()
                           .iniciarSesionPanel(u.rol, u.idUsuario,
                                               u.nombre + " " + u.apellido);

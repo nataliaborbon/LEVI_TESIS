@@ -6,9 +6,6 @@
 
 // ---------------------------------------------------------------------------
 // POST /api/usuarios
-// Header: Authorization: Bearer <token>
-// Body: { "usuario", "nombre", "apellido", "rol", "materia", "contacto",
-//         "password", "confirmar", "claveMaestra" }
 // ---------------------------------------------------------------------------
 static void handleCrear(AsyncWebServerRequest *request, uint8_t *data,
                         size_t len, size_t, size_t)
@@ -53,7 +50,6 @@ static void handleCrear(AsyncWebServerRequest *request, uint8_t *data,
 
 // ---------------------------------------------------------------------------
 // DELETE /api/usuarios/:usuario
-// Body: { "claveMaestra": "..." }
 // ---------------------------------------------------------------------------
 static void handleEliminar(AsyncWebServerRequest *request)
 {
@@ -78,7 +74,7 @@ static void handleEliminar(AsyncWebServerRequest *request)
 }
 
 // ---------------------------------------------------------------------------
-// GET /api/usuarios/perfil (ESTE ES EL QUE LEE LOS DATOS PARA LLENAR LA PANTALLA)
+// GET /api/usuarios/perfil
 // ---------------------------------------------------------------------------
 static void handleObtenerPerfil(AsyncWebServerRequest *request) {
     if (!verificarSesionPanel(request)) return;
@@ -89,14 +85,12 @@ static void handleObtenerPerfil(AsyncWebServerRequest *request) {
         return;
     }
 
-    // Buscamos los datos en la BD
     Usuario u = UsuarioService::getInstance().obtenerPerfil(sesion.idUsuario);
     if (u.idUsuario == 0) {
         enviarError(request, 404, "Usuario no encontrado.");
         return;
     }
 
-    // Los empaquetamos en JSON y se los mandamos a React
     StaticJsonDocument<256> resp;
     resp["idUsuario"] = u.idUsuario;
     resp["usuario"] = u.usuario;
@@ -112,8 +106,6 @@ static void handleObtenerPerfil(AsyncWebServerRequest *request) {
 
 // ---------------------------------------------------------------------------
 // PUT /api/usuarios/perfil
-// Header: Authorization: Bearer <token>
-// Body: { "usuario", "nombre", "apellido", "materia", "contacto" }
 // ---------------------------------------------------------------------------
 static void handleEditarPerfil(AsyncWebServerRequest *request, uint8_t *data,
                                size_t len, size_t, size_t)
@@ -135,7 +127,6 @@ static void handleEditarPerfil(AsyncWebServerRequest *request, uint8_t *data,
         return;
     }
 
-    // Obtener usuario actual para mantener rol y otros campos no editables
     Usuario u = UsuarioService::getInstance().obtenerPerfil(sesion.idUsuario);
     if (u.idUsuario == 0)
     {
@@ -143,7 +134,6 @@ static void handleEditarPerfil(AsyncWebServerRequest *request, uint8_t *data,
         return;
     }
 
-    // Actualizar solo los campos editables
     u.usuario = doc["usuario"] | u.usuario;
     u.nombre = doc["nombre"] | u.nombre;
     u.apellido = doc["apellido"] | u.apellido;
@@ -165,7 +155,6 @@ static void handleEditarPerfil(AsyncWebServerRequest *request, uint8_t *data,
 
 // ---------------------------------------------------------------------------
 // PUT /api/usuarios/password
-// Body: { "usuario", "claveMaestra", "passwordNueva", "confirmar" }
 // ---------------------------------------------------------------------------
 static void handleRecuperarPassword(AsyncWebServerRequest *request, uint8_t *data,
                                   size_t len, size_t, size_t)
@@ -196,7 +185,6 @@ static void handleRecuperarPassword(AsyncWebServerRequest *request, uint8_t *dat
 
 // ---------------------------------------------------------------------------
 // PUT /api/usuarios/perfil/password
-// Body: { "passwordActual", "passwordNueva", "confirmar" }
 // ---------------------------------------------------------------------------
 static void handleCambiarPassword(AsyncWebServerRequest *request, uint8_t *data,
                                         size_t len, size_t, size_t) {
@@ -227,7 +215,6 @@ static void handleCambiarPassword(AsyncWebServerRequest *request, uint8_t *data,
 
 // ---------------------------------------------------------------------------
 // GET /api/usuarios/profesores
-// Header: Authorization: Bearer <token>
 // ---------------------------------------------------------------------------
 static void handleListarProfesores(AsyncWebServerRequest *request)
 {
@@ -265,7 +252,6 @@ static void handleListarProfesores(AsyncWebServerRequest *request)
 
 // ---------------------------------------------------------------------------
 // GET /api/usuarios/tutores
-// Header: Authorization: Bearer <token>
 // ---------------------------------------------------------------------------
 static void handleListarTutores(AsyncWebServerRequest *request)
 {

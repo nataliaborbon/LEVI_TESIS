@@ -1,6 +1,9 @@
 #include "services/CuestionarioService.h"
 #include "storage/database/repositories/CuestionarioRepository.h"
 #include "storage/database/repositories/PreguntaOpcionRepository.h"
+#include "storage/database/DatabaseManager.h"
+#include "esp_task_wdt.h"
+#include "config/Limites.h"
 
 // ---------------------------------------------------------------------------
 // Helpers privados
@@ -12,9 +15,9 @@ bool CuestionarioService::_esDuenio(int idCuestionario, int idUsuario) {
 }
 
 float CuestionarioService::_calcularPuntaje(int idCuestionario) {
-    Pregunta preguntas[20];
+    Pregunta preguntas[MAX_PREGUNTAS_POR_CUESTIONARIO];
     int cant = PreguntaRepository::getInstance()
-                .listarPorCuestionario(idCuestionario, preguntas, 20);
+                .listarPorCuestionario(idCuestionario, preguntas, MAX_PREGUNTAS_POR_CUESTIONARIO);
 
     float puntaje = 0.0f;
     for (int i = 0; i < cant; i++) {
@@ -39,8 +42,7 @@ void CuestionarioService::_iniciarCronometro(int idCuestionario) {
 }
 
 void CuestionarioService::_pausarCronometro(int idCuestionario) {
-    // Al pausar no hay que calcular nada.
-    // El tiempo se congeló exacto en el último heartbeat.
+
 }
 
 int CuestionarioService::_tiempoTranscurridoSeg(int idCuestionario) {
@@ -50,7 +52,6 @@ int CuestionarioService::_tiempoTranscurridoSeg(int idCuestionario) {
 
 void CuestionarioService::procesarHeartbeatCronometro(int idCuestionario) {
     if (_idCuestionarioTimer == idCuestionario) {
-        // Sumamos exactamente 2 segundos por cada heartbeat recibido
         _tiempoAcumuladoSeg += 2;
     }
 }
@@ -60,86 +61,188 @@ void CuestionarioService::procesarHeartbeatCronometro(int idCuestionario) {
 // ---------------------------------------------------------------------------
 
 CuestionarioResult CuestionarioService::crear(const Cuestionario& c,
-                                               const PreguntaCompleta* preguntas,
-                                               int cant) {
+                                              const PreguntaCompleta* preguntas,
+                                              int cant)
+{
     CuestionarioResult result;
 
-    if (c.titulo.length() == 0) {
+    Serial.println("[CREAR] Inicio");
+
+    if (c.titulo.length() == 0)
+    {
         result.mensaje = "El título no puede estar vacío.";
         return result;
     }
 
-    if (cant < 1) {
+    if (cant < 1)
+    {
         result.mensaje = "El cuestionario debe tener al menos una pregunta.";
         return result;
     }
 
-    // Validar cada pregunta
-    for (int i = 0; i < cant; i++) {
-        if (preguntas[i].pregunta.pregunta.length() == 0) {
-            result.mensaje = "La pregunta " + String(i + 1) + " no puede estar vacía.";
+    for (int i = 0; i < cant; i++)
+    {
+        if (preguntas[i].pregunta.pregunta.length() == 0)
+        {
+            result.mensaje = "Pregunta vacía";
             return result;
         }
-        if (preguntas[i].cantOpciones < 2 || preguntas[i].cantOpciones > 4) {
-            result.mensaje = "La pregunta " + String(i + 1) + " debe tener entre 2 y 4 opciones.";
+
+        if (preguntas[i].cantOpciones < 2 ||
+            preguntas[i].cantOpciones > 4)
+        {
+            result.mensaje = "Cantidad de opciones inválida";
             return result;
         }
 
         int correctas = 0;
-        for (int j = 0; j < preguntas[i].cantOpciones; j++) {
-            if (preguntas[i].opciones[j].esCorrecta) correctas++;
-        }
-        if (correctas != 1) {
-            result.mensaje = "La pregunta " + String(i + 1) + " debe tener exactamente una opción correcta.";
+        for (int j = 0; j < preguntas[i].cantOpciones; j++)
+            if (preguntas[i].opciones[j].esCorrecta)
+                correctas++;
+
+        if (correctas != 1)
+        {
+            result.mensaje = "La pregunta " + String(i + 1) + " debe tener una correcta.";
             return result;
         }
     }
 
-    if (CuestionarioRepository::getInstance().existeTitulo(c.idUsuario, c.titulo)) {
+    if (CuestionarioRepository::getInstance().existeTitulo(c.idUsuario, c.titulo))
+    {
         result.mensaje = "Ya existe un cuestionario con ese título.";
         return result;
     }
 
-    // Crear cuestionario
+
+    auto abortarYLimpiar = [](int idCuestionario, const String& motivo) -> CuestionarioResult {
+        CuestionarioResult r;
+        r.mensaje = motivo;
+
+        Serial.printf("[CREAR] ABORTANDO: %s\n", motivo.c_str());
+        Serial.printf("[CREAR] Limpiando cuestionario ID=%d (cascade)\n", idCuestionario);
+
+        DatabaseManager::getInstance().rollback();
+
+        DbResult dbDel = CuestionarioRepository::getInstance().eliminar(idCuestionario);
+        if (!dbDel.ok)
+        {
+            Serial.printf("[CREAR] ATENCION: no se pudo limpiar cuestionario ID=%d: %s\n",
+                          idCuestionario, dbDel.mensaje.c_str());
+        }
+
+        return r;
+    };
+
+    if (!DatabaseManager::getInstance().beginTransaction())
+    {
+        result.mensaje = "Error iniciando transacción (cuestionario).";
+        return result;
+    }
+
+    Serial.println("[CREAR] Insertando cuestionario");
     DbResult dbCues = CuestionarioRepository::getInstance().crear(c);
-    if (!dbCues.ok) {
-        result.mensaje = "Error al crear el cuestionario: " + dbCues.mensaje;
+    if (!dbCues.ok)
+    {
+        DatabaseManager::getInstance().rollback();
+        result.mensaje = dbCues.mensaje;
+        return result;
+    }
+
+    if (!DatabaseManager::getInstance().commit())
+    {
+        DatabaseManager::getInstance().rollback();
+        result.mensaje = "Error en commit (cuestionario).";
         return result;
     }
 
     int idCuestionario = dbCues.id;
+    Serial.printf("[CREAR] Cuestionario creado ID=%d\n", idCuestionario);
 
-    // Crear preguntas y opciones
-    for (int i = 0; i < cant; i++) {
+    for (int i = 0; i < cant; i++)
+    {
+        esp_task_wdt_reset();
+        yield();
+
+        Serial.printf("[CREAR] Pregunta %d/%d\n", i + 1, cant);
+
+        if (!DatabaseManager::getInstance().beginTransaction())
+        {
+            return abortarYLimpiar(idCuestionario,
+                "Error iniciando transacción de pregunta " + String(i + 1));
+        }
+
         Pregunta p = preguntas[i].pregunta;
         p.idCuestionario = idCuestionario;
 
         DbResult dbPreg = PreguntaRepository::getInstance().crear(p);
-        if (!dbPreg.ok) {
-            result.mensaje = "Error al crear la pregunta " + String(i + 1);
-            return result;
+        if (!dbPreg.ok)
+        {
+            return abortarYLimpiar(idCuestionario,
+                "Error creando pregunta " + String(i + 1) + ": " + dbPreg.mensaje);
         }
 
-        int idPregunta       = dbPreg.id;
+        if (!DatabaseManager::getInstance().commit())
+        {
+            return abortarYLimpiar(idCuestionario,
+                "Error en commit de pregunta " + String(i + 1));
+        }
+
+        int idPregunta = dbPreg.id;
+        esp_task_wdt_reset();
+        yield();
+
+        if (!DatabaseManager::getInstance().beginTransaction())
+        {
+            return abortarYLimpiar(idCuestionario,
+                "Error iniciando transacción de opciones en pregunta " + String(i + 1));
+        }
+
         int idOpcionCorrecta = 0;
 
-        for (int j = 0; j < preguntas[i].cantOpciones; j++) {
-            DbResult dbOpc = OpcionRepository::getInstance()
-                              .crear(idPregunta, preguntas[i].opciones[j].opcion);
-            if (!dbOpc.ok) {
-                result.mensaje = "Error al crear la opción " + String(j + 1) +
-                                 " de la pregunta " + String(i + 1);
-                return result;
-            }
+        for (int j = 0; j < preguntas[i].cantOpciones; j++)
+        {
+            esp_task_wdt_reset();
+            yield();
 
-            if (preguntas[i].opciones[j].esCorrecta) {
-                idOpcionCorrecta = dbOpc.id;
+            DbResult dbOpc = OpcionRepository::getInstance()
+                .crear(idPregunta, preguntas[i].opciones[j].opcion);
+            if (!dbOpc.ok)
+            {
+                return abortarYLimpiar(idCuestionario,
+                    "Error creando opción en pregunta " + String(i + 1) + ": " + dbOpc.mensaje);
             }
+            if (preguntas[i].opciones[j].esCorrecta)
+                idOpcionCorrecta = dbOpc.id;
         }
 
-        PreguntaRepository::getInstance().asignarOpcionCorrecta(idPregunta, idOpcionCorrecta);
+        if (idOpcionCorrecta == 0)
+        {
+            return abortarYLimpiar(idCuestionario,
+                "No se encontró opción correcta en pregunta " + String(i + 1));
+        }
+
+        esp_task_wdt_reset();
+
+        DbResult dbCorrecta = PreguntaRepository::getInstance()
+            .asignarOpcionCorrecta(idPregunta, idOpcionCorrecta);
+        if (!dbCorrecta.ok)
+        {
+            return abortarYLimpiar(idCuestionario,
+                "Error al asignar opción correcta en pregunta " + String(i + 1) + ": " + dbCorrecta.mensaje);
+        }
+
+        if (!DatabaseManager::getInstance().commit())
+        {
+            return abortarYLimpiar(idCuestionario,
+                "Error en commit de opciones en pregunta " + String(i + 1));
+        }
+
+        Serial.println("[CREAR] Pregunta completa OK");
+        esp_task_wdt_reset();
+        vTaskDelay(1);
     }
 
+    Serial.println("[CREAR] FIN OK");
     result.ok = true;
     result.id = idCuestionario;
     return result;
@@ -169,10 +272,9 @@ CuestionarioResult CuestionarioService::eliminar(int idCuestionario, int idUsuar
         return result;
     }
 
-    // Eliminar opciones y preguntas antes del cuestionario (foreign keys)
-    Pregunta preguntas[20];
+    Pregunta preguntas[MAX_PREGUNTAS_POR_CUESTIONARIO];
     int cant = PreguntaRepository::getInstance()
-                .listarPorCuestionario(idCuestionario, preguntas, 20);
+                .listarPorCuestionario(idCuestionario, preguntas, MAX_PREGUNTAS_POR_CUESTIONARIO);
 
     for (int i = 0; i < cant; i++) {
         OpcionRepository::getInstance().eliminarPorPregunta(preguntas[i].idPregunta);
@@ -192,34 +294,115 @@ CuestionarioResult CuestionarioService::editar(const Cuestionario& c, const Preg
     if (actual.idCuestionario == 0) { result.mensaje = "No encontrado."; return result; }
     if (actual.estado != "pendiente") { result.mensaje = "Solo se editan pendientes."; return result; }
 
-    // 1. Actualizar datos base (título/puntaje)
     DbResult db = CuestionarioRepository::getInstance().actualizar(c);
     if (!db.ok) { result.mensaje = db.mensaje; return result; }
 
-    // 2. Borrar preguntas y opciones viejas
-    Pregunta pregsViejas[20];
-    int cantViejas = PreguntaRepository::getInstance().listarPorCuestionario(c.idCuestionario, pregsViejas, 20);
+    Pregunta pregsViejas[MAX_PREGUNTAS_POR_CUESTIONARIO];
+    int cantViejas = PreguntaRepository::getInstance()
+                     .listarPorCuestionario(c.idCuestionario, pregsViejas, MAX_PREGUNTAS_POR_CUESTIONARIO);
+
+    int idsNuevasCreadas[MAX_PREGUNTAS_POR_CUESTIONARIO];
+    int cantNuevasCreadas = 0;
+
+    auto limpiarNuevasYAbortar = [&](const String& motivo) -> CuestionarioResult {
+        CuestionarioResult r;
+        r.mensaje = motivo;
+
+        Serial.printf("[EDITAR] ABORTANDO: %s\n", motivo.c_str());
+        DatabaseManager::getInstance().rollback(); // por si quedó algo abierto
+
+        for (int k = 0; k < cantNuevasCreadas; k++) {
+            Serial.printf("[EDITAR] Limpiando pregunta nueva ID=%d (cascade)\n",
+                          idsNuevasCreadas[k]);
+            PreguntaRepository::getInstance().eliminar(idsNuevasCreadas[k]);
+        }
+
+        Serial.println("[EDITAR] Preguntas viejas quedaron intactas.");
+        return r;
+    };
+
+    for (int i = 0; i < cant; i++)
+    {
+        esp_task_wdt_reset();
+        yield();
+
+        Serial.printf("[EDITAR] Pregunta nueva %d/%d\n", i + 1, cant);
+
+        if (!DatabaseManager::getInstance().beginTransaction())
+            return limpiarNuevasYAbortar("Error iniciando transacción de pregunta " + String(i + 1));
+
+        Pregunta p = preguntas[i].pregunta;
+        p.idCuestionario = c.idCuestionario;
+
+        DbResult dbPreg = PreguntaRepository::getInstance().crear(p);
+        if (!dbPreg.ok)
+        {
+            DatabaseManager::getInstance().rollback();
+            return limpiarNuevasYAbortar("Error creando pregunta " + String(i + 1) + ": " + dbPreg.mensaje);
+        }
+
+        if (!DatabaseManager::getInstance().commit())
+            return limpiarNuevasYAbortar("Error en commit de pregunta " + String(i + 1));
+
+        int idPregunta = dbPreg.id;
+        if (cantNuevasCreadas < MAX_PREGUNTAS_POR_CUESTIONARIO) idsNuevasCreadas[cantNuevasCreadas++] = idPregunta;
+
+        esp_task_wdt_reset();
+        yield();
+
+        if (!DatabaseManager::getInstance().beginTransaction())
+            return limpiarNuevasYAbortar("Error iniciando transacción de opciones en pregunta " + String(i + 1));
+
+        int idOpcionCorrecta = 0;
+
+        for (int j = 0; j < preguntas[i].cantOpciones; j++)
+        {
+            esp_task_wdt_reset();
+            yield();
+
+            DbResult dbOpc = OpcionRepository::getInstance()
+                .crear(idPregunta, preguntas[i].opciones[j].opcion);
+            if (!dbOpc.ok)
+            {
+                DatabaseManager::getInstance().rollback();
+                return limpiarNuevasYAbortar("Error creando opción en pregunta " + String(i + 1) + ": " + dbOpc.mensaje);
+            }
+            if (preguntas[i].opciones[j].esCorrecta)
+                idOpcionCorrecta = dbOpc.id;
+        }
+
+        if (idOpcionCorrecta == 0)
+        {
+            DatabaseManager::getInstance().rollback();
+            return limpiarNuevasYAbortar("No se encontró opción correcta en pregunta " + String(i + 1));
+        }
+
+        esp_task_wdt_reset();
+
+        DbResult dbCorrecta = PreguntaRepository::getInstance()
+            .asignarOpcionCorrecta(idPregunta, idOpcionCorrecta);
+        if (!dbCorrecta.ok)
+        {
+            DatabaseManager::getInstance().rollback();
+            return limpiarNuevasYAbortar("Error al asignar opción correcta en pregunta " + String(i + 1) + ": " + dbCorrecta.mensaje);
+        }
+
+        if (!DatabaseManager::getInstance().commit())
+            return limpiarNuevasYAbortar("Error en commit de opciones en pregunta " + String(i + 1));
+
+        Serial.println("[EDITAR] Pregunta nueva completa OK");
+        esp_task_wdt_reset();
+        vTaskDelay(1);
+    }
+
+    Serial.println("[EDITAR] Todo lo nuevo OK. Borrando preguntas viejas...");
     for (int i = 0; i < cantViejas; i++) {
+        esp_task_wdt_reset();
         OpcionRepository::getInstance().eliminarPorPregunta(pregsViejas[i].idPregunta);
         PreguntaRepository::getInstance().eliminar(pregsViejas[i].idPregunta);
     }
 
-    // 3. Crear preguntas y opciones nuevas (reutilizando tu lógica de crear)
-    for (int i = 0; i < cant; i++) {
-        Pregunta p = preguntas[i].pregunta;
-        p.idCuestionario = c.idCuestionario;
-        DbResult dbPreg = PreguntaRepository::getInstance().crear(p);
-        
-        int idPregunta = dbPreg.id;
-        int idOpcionCorrecta = 0;
-
-        for (int j = 0; j < preguntas[i].cantOpciones; j++) {
-            DbResult dbOpc = OpcionRepository::getInstance().crear(idPregunta, preguntas[i].opciones[j].opcion);
-            if (preguntas[i].opciones[j].esCorrecta) idOpcionCorrecta = dbOpc.id;
-        }
-        PreguntaRepository::getInstance().asignarOpcionCorrecta(idPregunta, idOpcionCorrecta);
-    }
-
+    Serial.println("[EDITAR] FIN OK");
     result.ok = true;
     return result;
 }
@@ -314,7 +497,6 @@ CuestionarioResult CuestionarioService::reanudar(int idCuestionario, int idUsuar
         return result;
     }
 
-    // Limpiar respuestas anteriores para que el alumno empiece de nuevo
     PreguntaRepository::getInstance().limpiarRespuestas(idCuestionario);
 
     DbResult db = CuestionarioRepository::getInstance()
@@ -350,7 +532,6 @@ CuestionarioResult CuestionarioService::finalizar(int idCuestionario, int idUsua
 
     float puntaje = _calcularPuntaje(idCuestionario);
     
-    // Extraer el tiempo del cronómetro antes de apagarlo ---
     int tiempoSegundos = _tiempoTranscurridoSeg(idCuestionario);
 
     String fecha = "2025-01-01T00:00:00";
@@ -360,27 +541,26 @@ CuestionarioResult CuestionarioService::finalizar(int idCuestionario, int idUsua
     result.ok = db.ok;
     if (!result.ok) result.mensaje = db.mensaje;
     
-    // Apagamos el cronómetro
     _idCuestionarioTimer = 0; 
     
     return result;
 }
 
 // ---------------------------------------------------------------------------
-// Obtener Completo (Para el Editor en React)
+// Obtener Completo
 // ---------------------------------------------------------------------------
 bool CuestionarioService::obtenerCompleto(int idCuestionario, Cuestionario& c, PreguntaCompleta* bufferPreguntas, int& cantPreguntas) {
     c = CuestionarioRepository::getInstance().buscarPorId(idCuestionario);
     if (c.idCuestionario == 0) return false;
 
-    Pregunta* pregs = new Pregunta[20]; 
-    cantPreguntas = PreguntaRepository::getInstance().listarPorCuestionario(idCuestionario, pregs, 20);
+    Pregunta* pregs = new Pregunta[MAX_PREGUNTAS_POR_CUESTIONARIO]; 
+    cantPreguntas = PreguntaRepository::getInstance().listarPorCuestionario(idCuestionario, pregs, MAX_PREGUNTAS_POR_CUESTIONARIO);
 
     for (int i = 0; i < cantPreguntas; i++) {
         bufferPreguntas[i].pregunta = pregs[i];
         
-        Opcion opcs[4];
-        int cantOp = OpcionRepository::getInstance().listarPorPregunta(pregs[i].idPregunta, opcs, 4);
+        Opcion opcs[MAX_OPCIONES_POR_PREGUNTA];
+        int cantOp = OpcionRepository::getInstance().listarPorPregunta(pregs[i].idPregunta, opcs, MAX_OPCIONES_POR_PREGUNTA);
         bufferPreguntas[i].cantOpciones = cantOp;
         
         for (int j = 0; j < cantOp; j++) {

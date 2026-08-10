@@ -105,7 +105,6 @@ DbResult UsuarioRepository::actualizar(const Usuario& u) {
     DbResult result;
     sqlite3* db = DatabaseManager::getInstance().getDB();
 
-    // El rol no se puede editar, por eso no está en el SET.
     const char* sql = R"(
         UPDATE usuarios
         SET usuario = ?, nombre = ?, apellido = ?, materia = ?, contacto = ?

@@ -52,25 +52,68 @@ DbResult PreguntaRepository::crear(const Pregunta& p) {
     return result;
 }
 
-DbResult PreguntaRepository::asignarOpcionCorrecta(int idPregunta, int idOpcionCorrecta) {
+DbResult PreguntaRepository::asignarOpcionCorrecta(int idPregunta,
+                                                   int idOpcionCorrecta)
+{
     DbResult result;
     sqlite3* db = DatabaseManager::getInstance().getDB();
 
-    sqlite3_stmt* stmt;
-    if (sqlite3_prepare_v2(db,
-        "UPDATE preguntas SET idOpcionCorrecta = ? WHERE idPregunta = ?;",
-        -1, &stmt, nullptr) != SQLITE_OK) {
-        result.mensaje = String("prepare error: ") + sqlite3_errmsg(db);
+    Serial.println("================================");
+    Serial.println("[UPDATE OPCION CORRECTA]");
+
+    Serial.printf("Pregunta = %d\n", idPregunta);
+    Serial.printf("Opcion   = %d\n", idOpcionCorrecta);
+
+    Serial.printf("Heap libre      = %u\n", ESP.getFreeHeap());
+    Serial.printf("Heap minimo     = %u\n", ESP.getMinFreeHeap());
+    Serial.printf("Max alloc block = %u\n", ESP.getMaxAllocHeap());
+
+    sqlite3_stmt* stmt = nullptr;
+
+    int rc = sqlite3_prepare_v2(
+        db,
+        "UPDATE preguntas SET idOpcionCorrecta=? WHERE idPregunta=?;",
+        -1,
+        &stmt,
+        nullptr);
+
+    Serial.printf("prepare rc = %d\n", rc);
+
+    if (rc != SQLITE_OK)
+    {
+        Serial.printf("prepare error: %s\n", sqlite3_errmsg(db));
+        result.mensaje = sqlite3_errmsg(db);
         return result;
     }
 
     sqlite3_bind_int(stmt, 1, idOpcionCorrecta);
     sqlite3_bind_int(stmt, 2, idPregunta);
 
-    result.ok = (sqlite3_step(stmt) == SQLITE_DONE);
-    if (!result.ok) result.mensaje = String("step error: ") + sqlite3_errmsg(db);
+    Serial.println("Ejecutando UPDATE...");
+
+    rc = sqlite3_step(stmt);
+
+    Serial.printf("step rc = %d\n", rc);
+    Serial.printf("errmsg  = %s\n", sqlite3_errmsg(db));
+    Serial.printf("extended errcode = %d\n",
+                  sqlite3_extended_errcode(db));
+
+    if (rc == SQLITE_DONE)
+    {
+        result.ok = true;
+        Serial.println("UPDATE OK");
+    }
+    else
+    {
+        result.mensaje = sqlite3_errmsg(db);
+        Serial.println("UPDATE ERROR");
+    }
 
     sqlite3_finalize(stmt);
+
+    Serial.println("[FIN UPDATE]");
+    Serial.println("================================");
+
     return result;
 }
 
@@ -317,7 +360,6 @@ bool PreguntaRepository::obtenerSiguienteParaAlumno(int idCuestionario,
                                                      PreguntaAlumno& result) {
     sqlite3* db = DatabaseManager::getInstance().getDB();
 
-    // Busca la primera pregunta sin responder
     const char* sql = R"(
         SELECT idPregunta, pregunta
         FROM preguntas

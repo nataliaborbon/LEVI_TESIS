@@ -3,9 +3,10 @@
 #include "services/CuestionarioService.h"
 #include "session/SessionManager.h"
 #include <ArduinoJson.h>
+#include "config/Limites.h"
 
 // ---------------------------------------------------------------------------
-// GET /api/cuestionarios (PLURAL - Lista Todos)
+// GET /api/cuestionarios
 // ---------------------------------------------------------------------------
 static void handleListar(AsyncWebServerRequest* request) {
     if (!verificarSesionPanel(request)) return;
@@ -14,8 +15,8 @@ static void handleListar(AsyncWebServerRequest* request) {
 
     String json = "{\"ok\":true,\"cuestionarios\":[";
     if (sesion.rol == "profesor") {
-        CuestionarioResumenProfesor buffer[50];
-        int cant = CuestionarioService::getInstance().listarProfesor(sesion.idUsuario, buffer, 50);
+        CuestionarioResumenProfesor buffer[MAX_CUESTIONARIOS_LISTADO];
+        int cant = CuestionarioService::getInstance().listarProfesor(sesion.idUsuario, buffer, MAX_CUESTIONARIOS_LISTADO);
         for (int i = 0; i < cant; i++) {
             if (i > 0) json += ",";
             json += "{\"idCuestionario\":" + String(buffer[i].idCuestionario) + ",";
@@ -27,8 +28,8 @@ static void handleListar(AsyncWebServerRequest* request) {
             json += "\"aprobado\":" + String(buffer[i].aprobado ? "true" : "false") + "}";
         }
     } else {
-        CuestionarioResumenTutor buffer[50];
-        int cant = CuestionarioService::getInstance().listarTutor(buffer, 50);
+        CuestionarioResumenTutor buffer[MAX_CUESTIONARIOS_LISTADO];
+        int cant = CuestionarioService::getInstance().listarTutor(buffer, MAX_CUESTIONARIOS_LISTADO);
         for (int i = 0; i < cant; i++) {
             if (i > 0) json += ",";
             json += "{\"idCuestionario\":" + String(buffer[i].idCuestionario) + ",";
@@ -46,7 +47,7 @@ static void handleListar(AsyncWebServerRequest* request) {
 }
 
 // ---------------------------------------------------------------------------
-// GET /api/cuestionario?id=X (SINGULAR - Obtener Uno)
+// GET /api/cuestionario?id=X
 // ---------------------------------------------------------------------------
 static void handleObtener(AsyncWebServerRequest* request) {
     if (!verificarSesionPanel(request)) return;
@@ -54,7 +55,7 @@ static void handleObtener(AsyncWebServerRequest* request) {
     int idCuestionario = request->getParam("id")->value().toInt();
 
     Cuestionario c;
-    PreguntaCompleta* preguntas = new PreguntaCompleta[20]; 
+    PreguntaCompleta* preguntas = new PreguntaCompleta[MAX_PREGUNTAS_POR_CUESTIONARIO]; 
     int cantPreguntas = 0;
 
     if (!CuestionarioService::getInstance().obtenerCompleto(idCuestionario, c, preguntas, cantPreguntas)) {
@@ -95,12 +96,67 @@ static void handleObtener(AsyncWebServerRequest* request) {
 // ---------------------------------------------------------------------------
 // POST /api/cuestionarios (Crear Nuevo)
 // ---------------------------------------------------------------------------
-static void handleCrear(AsyncWebServerRequest* request, uint8_t* data, size_t len, size_t, size_t) {
-    if (!verificarSesionPanel(request, "profesor")) return;
-    const SesionPanel& sesion = SessionManager::getInstance().getSesionPanel();
+static void handleCrear(AsyncWebServerRequest* request,
+                        uint8_t* data,
+                        size_t len,
+                        size_t index,
+                        size_t total)
+{
+    static String body;
 
-    DynamicJsonDocument doc(4096);
-    if (deserializeJson(doc, data, len)) { enviarError(request, 400, "JSON inválido."); return; }
+    if (index == 0)
+    {
+        body = "";
+        body.reserve(total);
+
+        Serial.println();
+        Serial.println("==============================");
+        Serial.println("POST /api/cuestionarios");
+        Serial.printf("Body total esperado: %u bytes\n", total);
+    }
+
+    body.concat((const char*)data, len);
+
+    Serial.printf("Fragmento: index=%u len=%u (%u/%u)\n",
+                  index,
+                  len,
+                  index + len,
+                  total);
+
+    if (index + len < total)
+        return;
+
+    Serial.printf("Body reconstruido: %u bytes\n", body.length());
+
+    if (!verificarSesionPanel(request, "profesor"))
+    {
+        body = "";
+        return;
+    }
+
+    const SesionPanel& sesion =
+        SessionManager::getInstance().getSesionPanel();
+
+    DynamicJsonDocument doc(body.length() + 2048);
+
+    DeserializationError err = deserializeJson(doc, body);
+
+    if (err)
+    {
+        Serial.println("----- ERROR JSON -----");
+        Serial.println(err.c_str());
+
+        Serial.println("Contenido completo:");
+        Serial.println(body);
+
+        body = "";
+        enviarError(request, 400, err.c_str());
+        return;
+    }
+
+    body = "";
+
+    Serial.println("JSON parseado correctamente.");
 
     Cuestionario c;
     c.idUsuario = sesion.idUsuario;
@@ -108,46 +164,131 @@ static void handleCrear(AsyncWebServerRequest* request, uint8_t* data, size_t le
     c.puntajeParaAprobar = doc["puntajeParaAprobar"] | 0.0f;
 
     JsonArray preguntasJson = doc["preguntas"].as<JsonArray>();
-    if (preguntasJson.isNull()) { enviarError(request, 400, "Falta 'preguntas'."); return; }
+
+    if (preguntasJson.isNull())
+    {
+        enviarError(request, 400, "Falta 'preguntas'.");
+        return;
+    }
+
+    Serial.printf("Cantidad de preguntas: %u\n", preguntasJson.size());
+
+    int totalOpciones = 0;
+    for (JsonObject pj : preguntasJson)
+        totalOpciones += pj["opciones"].as<JsonArray>().size();
+
+    Serial.printf("Cantidad total de opciones: %d\n", totalOpciones);
 
     int cantPreguntas = preguntasJson.size();
-    PreguntaCompleta preguntas[20];
+
+    PreguntaCompleta preguntas[MAX_PREGUNTAS_POR_CUESTIONARIO];
     int idx = 0;
 
-    for (JsonObject pj : preguntasJson) {
-        if (idx >= 20) break;
-        preguntas[idx].pregunta.pregunta = pj["pregunta"] | "";
-        preguntas[idx].pregunta.puntajeCorrecta = pj["puntajeCorrecta"] | 0.0f;
-        preguntas[idx].pregunta.puntajeIncorrecta = pj["puntajeIncorrecta"] | 0.0f;
-        JsonArray opcsJson = pj["opciones"].as<JsonArray>();
+    for (JsonObject pj : preguntasJson)
+    {
+        if (idx >= MAX_PREGUNTAS_POR_CUESTIONARIO)
+            break;
+
+        preguntas[idx].pregunta.pregunta =
+            pj["pregunta"] | "";
+
+        preguntas[idx].pregunta.puntajeCorrecta =
+            pj["puntajeCorrecta"] | 0.0f;
+
+        preguntas[idx].pregunta.puntajeIncorrecta =
+            pj["puntajeIncorrecta"] | 0.0f;
+
+        JsonArray opcs = pj["opciones"].as<JsonArray>();
+
         preguntas[idx].cantOpciones = 0;
-        for (JsonObject oj : opcsJson) {
-            if (preguntas[idx].cantOpciones >= 4) break;
+
+        for (JsonObject oj : opcs)
+        {
+            if (preguntas[idx].cantOpciones >= MAX_OPCIONES_POR_PREGUNTA)
+                break;
+
             int j = preguntas[idx].cantOpciones++;
-            preguntas[idx].opciones[j].opcion = oj["opcion"] | "";
-            preguntas[idx].opciones[j].esCorrecta = oj["esCorrecta"] | false;
+
+            preguntas[idx].opciones[j].opcion =
+                oj["opcion"] | "";
+
+            preguntas[idx].opciones[j].esCorrecta =
+                oj["esCorrecta"] | false;
         }
+
         idx++;
     }
 
-    CuestionarioResult result = CuestionarioService::getInstance().crear(c, preguntas, cantPreguntas);
-    if (!result.ok) { enviarError(request, 400, result.mensaje); return; }
-    String json = "{\"ok\":true,\"idCuestionario\":" + String(result.id) + "}";
+    Serial.println("Antes de crear()");
+
+
+    CuestionarioResult result =
+        CuestionarioService::getInstance().crear(
+            c,
+            preguntas,
+            cantPreguntas);
+
+    Serial.println("Despues de crear()");
+    
+    if (!result.ok)
+    {
+        enviarError(request, 400, result.mensaje);
+        return;
+    }
+
+    String json =
+        "{\"ok\":true,\"idCuestionario\":" +
+        String(result.id) +
+        "}";
+
     enviarJSON(request, 201, json);
 }
+// ---------------------------------------------------------------------------
+// PUT /api/cuestionario?id=X Editar
+// ---------------------------------------------------------------------------
+static void handleEditar(AsyncWebServerRequest* request, uint8_t* data, size_t len, size_t index, size_t total) {
+    static String body;
 
-// ---------------------------------------------------------------------------
-// PUT /api/cuestionario?id=X (Editar Existente)
-// ---------------------------------------------------------------------------
-static void handleEditar(AsyncWebServerRequest* request, uint8_t* data, size_t len, size_t, size_t) {
-    if (!verificarSesionPanel(request, "profesor")) return;
+    if (index == 0)
+    {
+        body = "";
+        body.reserve(total);
+
+        Serial.println();
+        Serial.println("==============================");
+        Serial.println("PUT /api/cuestionario");
+        Serial.printf("Body total esperado: %u bytes\n", total);
+    }
+
+    body.concat((const char*)data, len);
+
+    Serial.printf("Fragmento: index=%u len=%u (%u/%u)\n",
+                  index, len, index + len, total);
+
+    // Todavía faltan fragmentos
+    if (index + len < total)
+        return;
+
+    Serial.printf("Body reconstruido: %u bytes\n", body.length());
+
+    if (!verificarSesionPanel(request, "profesor")) { body = ""; return; }
     const SesionPanel& sesion = SessionManager::getInstance().getSesionPanel();
 
-    if (!request->hasParam("id")) { enviarError(request, 400, "Falta ID"); return; }
+    if (!request->hasParam("id")) { body = ""; enviarError(request, 400, "Falta ID"); return; }
     int idCuestionario = request->getParam("id")->value().toInt();
 
-    DynamicJsonDocument doc(4096);
-    if (deserializeJson(doc, data, len)) { enviarError(request, 400, "JSON inválido."); return; }
+    DynamicJsonDocument doc(body.length() + 2048);
+    DeserializationError err = deserializeJson(doc, body);
+    body = "";
+
+    if (err) {
+        Serial.println("----- ERROR JSON (editar) -----");
+        Serial.println(err.c_str());
+        enviarError(request, 400, err.c_str());
+        return;
+    }
+
+    Serial.println("JSON parseado correctamente (editar).");
 
     Cuestionario c;
     c.idCuestionario = idCuestionario;
@@ -156,19 +297,26 @@ static void handleEditar(AsyncWebServerRequest* request, uint8_t* data, size_t l
     c.puntajeParaAprobar = doc["puntajeParaAprobar"] | 0.0f;
 
     JsonArray preguntasJson = doc["preguntas"].as<JsonArray>();
+
+    if (preguntasJson.isNull())
+    {
+        enviarError(request, 400, "Falta 'preguntas'.");
+        return;
+    }
+
     int cantPreguntas = preguntasJson.size();
-    PreguntaCompleta preguntas[20];
+    PreguntaCompleta preguntas[MAX_PREGUNTAS_POR_CUESTIONARIO];
     int idx = 0;
 
     for (JsonObject pj : preguntasJson) {
-        if (idx >= 20) break;
+        if (idx >= MAX_PREGUNTAS_POR_CUESTIONARIO) break;
         preguntas[idx].pregunta.pregunta = pj["pregunta"] | "";
         preguntas[idx].pregunta.puntajeCorrecta = pj["puntajeCorrecta"] | 0.0f;
         preguntas[idx].pregunta.puntajeIncorrecta = pj["puntajeIncorrecta"] | 0.0f;
         JsonArray opcsJson = pj["opciones"].as<JsonArray>();
         preguntas[idx].cantOpciones = 0;
         for (JsonObject oj : opcsJson) {
-            if (preguntas[idx].cantOpciones >= 4) break;
+            if (preguntas[idx].cantOpciones >= MAX_OPCIONES_POR_PREGUNTA) break;
             int j = preguntas[idx].cantOpciones++;
             preguntas[idx].opciones[j].opcion = oj["opcion"] | "";
             preguntas[idx].opciones[j].esCorrecta = oj["esCorrecta"] | false;
@@ -222,8 +370,8 @@ static void handleFinalizar(AsyncWebServerRequest* r, uint8_t*, size_t, size_t, 
 static void handleRevision(AsyncWebServerRequest* r) {
     if (!verificarSesionPanel(r)) return;
     if (!r->hasParam("id")) { enviarError(r, 400, "Falta ID"); return; }
-    PreguntaRevision buffer[20];
-    int cant = CuestionarioService::getInstance().obtenerRevision(r->getParam("id")->value().toInt(), buffer, 20);
+    PreguntaRevision buffer[MAX_PREGUNTAS_POR_CUESTIONARIO];
+    int cant = CuestionarioService::getInstance().obtenerRevision(r->getParam("id")->value().toInt(), buffer, MAX_PREGUNTAS_POR_CUESTIONARIO);
     if (cant < 0) { enviarError(r, 404, "No encontrado"); return; }
     
     String json = "{\"ok\":true,\"preguntas\":[";

@@ -6,7 +6,7 @@ void initWiFiAP()
 
     WiFi.softAPConfig(CYD_IP, CYD_GATEWAY, CYD_SUBNET);
 
-    if (!WiFi.softAP(WIFI_SSID, WIFI_PASSWORD))
+    if (!WiFi.softAP(WIFI_SSID, WIFI_PASSWORD, 1, false, 4))
     {
         Serial.println("[WiFi] Error: no se pudo crear la red WiFi.");
         return;

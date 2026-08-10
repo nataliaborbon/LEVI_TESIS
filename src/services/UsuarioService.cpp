@@ -38,20 +38,18 @@ UsuarioResult UsuarioService::crear(Usuario& u, const String& password,
                                      const String& claveMaestra) {
     UsuarioResult result;
 
-    // Verificar clave maestra según el rol a crear
+    // Verificar clave maestra según el rol
     if (!ConfigManager::getInstance().verificarClavePorRol(claveMaestra, u.rol)) {
         result.mensaje = "Clave maestra incorrecta.";
         return result;
     }
 
-    // Validar campos básicos
     String error = _validarCampos(u);
     if (error.length() > 0) {
         result.mensaje = error;
         return result;
     }
 
-    // Verificar que las contraseñas coincidan
     if (password.length() == 0) {
         result.mensaje = "La contraseña es obligatoria.";
         return result;
@@ -61,17 +59,14 @@ UsuarioResult UsuarioService::crear(Usuario& u, const String& password,
         return result;
     }
 
-    // Verificar que el nombre de usuario no exista
     if (UsuarioRepository::getInstance().existeUsuario(u.usuario)) {
         result.mensaje = "El nombre de usuario ya está en uso.";
         return result;
     }
 
-    // Hashear contraseña
     u.salt         = AuthService::getInstance().generarSalt();
     u.hashPassword = AuthService::getInstance().hashPassword(password, u.salt);
 
-    // Persistir
     DbResult db = UsuarioRepository::getInstance().crear(u);
     if (!db.ok) {
         result.mensaje = "Error al crear el usuario: " + db.mensaje;
@@ -90,14 +85,12 @@ UsuarioResult UsuarioService::crear(Usuario& u, const String& password,
 UsuarioResult UsuarioService::editarPerfil(const Usuario& u) {
     UsuarioResult result;
 
-    // Validar campos básicos
     String error = _validarCampos(u);
     if (error.length() > 0) {
         result.mensaje = error;
         return result;
     }
 
-    // Verificar que el nuevo nombre de usuario no esté tomado por otro
     if (UsuarioRepository::getInstance().existeUsuarioExcluyendo(u.usuario, u.idUsuario)) {
         result.mensaje = "El nombre de usuario ya está en uso.";
         return result;
@@ -129,7 +122,6 @@ UsuarioResult UsuarioService::recuperarPassword(String usuario, String claveMaes
         return resultado;
     }
 
-    // 1. Buscamos al usuario usando tu repositorio
     Usuario u = UsuarioRepository::getInstance().buscarPorUsuario(usuario);
     if (u.idUsuario == 0)
     {
@@ -137,7 +129,6 @@ UsuarioResult UsuarioService::recuperarPassword(String usuario, String claveMaes
         return resultado;
     }
 
-    // 2. Verificamos la clave maestra usando tu ConfigManager
     if (!ConfigManager::getInstance().verificarClavePorRol(claveMaestra, u.rol)) {
         resultado.mensaje = "Clave maestra incorrecta.";
         return resultado;
@@ -148,11 +139,9 @@ UsuarioResult UsuarioService::recuperarPassword(String usuario, String claveMaes
         return resultado;
     }
 
-    // 3. Generamos el nuevo Salt y el Hash usando tu AuthService
     String nuevoSalt = AuthService::getInstance().generarSalt();
     String nuevoHash = AuthService::getInstance().hashPassword(nueva, nuevoSalt);
     
-    // 4. Guardamos los cambios usando la función ESPECÍFICA de tu repositorio
     DbResult db = UsuarioRepository::getInstance().actualizarPassword(u.idUsuario, nuevoHash, nuevoSalt);
     
     if (db.ok)
@@ -180,14 +169,12 @@ UsuarioResult UsuarioService::cambiarPassword(int idUsuario, const String& actua
         return resultado;
     }
 
-    // Buscamos al usuario por su ID (ya sabemos que está logueado)
     Usuario u = UsuarioRepository::getInstance().buscarPorId(idUsuario);
     if (u.idUsuario == 0) {
         resultado.mensaje = "Usuario no encontrado.";
         return resultado;
     }
 
-    // Hasheamos la contraseña actual que ingresó y la comparamos con la guardada
     String hashActual = AuthService::getInstance().hashPassword(actual, u.salt);
     if (hashActual != u.hashPassword) {
         resultado.mensaje = "La contraseña actual es incorrecta.";
@@ -199,7 +186,6 @@ UsuarioResult UsuarioService::cambiarPassword(int idUsuario, const String& actua
         return resultado;
     }
 
-    // Si pasó la prueba de seguridad, generamos la nueva
     String nuevoSalt = AuthService::getInstance().generarSalt();
     String nuevoHash = AuthService::getInstance().hashPassword(nueva, nuevoSalt);
 
@@ -221,7 +207,6 @@ UsuarioResult UsuarioService::cambiarPassword(int idUsuario, const String& actua
 UsuarioResult UsuarioService::eliminar(int idUsuario) {
     UsuarioResult result;
 
-    // Buscamos el usuario por su ID para conocer su rol
     Usuario u = UsuarioRepository::getInstance().buscarPorId(idUsuario);
     if (u.idUsuario == 0) {
         result.ok = false;

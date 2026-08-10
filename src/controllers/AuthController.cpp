@@ -7,7 +7,6 @@
 
 // ---------------------------------------------------------------------------
 // POST /api/auth/login
-// Body: { "usuario": "...", "password": "..." }
 // ---------------------------------------------------------------------------
 static void handleLogin(AsyncWebServerRequest* request, uint8_t* data,
                          size_t len, size_t, size_t) {
@@ -63,7 +62,6 @@ static void handleLoginInvitado(AsyncWebServerRequest* request, uint8_t* data,
 
 // ---------------------------------------------------------------------------
 // GET /api/auth/perfil
-// Header: Authorization: Bearer <token>
 // ---------------------------------------------------------------------------
 static void handlePerfil(AsyncWebServerRequest* request) {
     if (!verificarSesionPanel(request)) return;

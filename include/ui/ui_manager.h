@@ -1,16 +1,13 @@
 #ifndef UI_MANAGER_H
 #define UI_MANAGER_H
 
-/**
- * @brief Inicializa la interfaz gráfica y la pantalla táctil.
- * @param isFirstBoot Indica si es el primer arranque del sistema.
- */
+// Inicializa la pantalla, el táctil y LVGL.
+// Si isFirstBoot es true, cargará la pantalla de setup.
+// Si es false, cargará las pantallas normales.
 void ui_init(bool isFirstBoot);
 
-/**
- * @brief Bucle principal de la interfaz gráfica.
- * Este bucle se encarga de actualizar la interfaz, manejar la entrada táctil y controlar la suspensión por inactividad.
- */
+// Esta función debe llamarse dentro del loop() principal de main.cpp
+// Mantiene viva la interfaz gráfica.
 void ui_loop();
 
 #endif

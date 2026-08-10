@@ -1,8 +1,6 @@
 #include "WebServer.h"
 #include <LittleFS.h>
 #include <SD.h>
-#include <memory>
-#include <esp_task_wdt.h>
 
 #include "controllers/AuthController.h"
 #include "controllers/UsuarioController.h"
@@ -10,7 +8,6 @@
 #include "controllers/RespuestaController.h"
 
 AsyncWebServer server(80);
-unsigned long ultimoPingCamara = 0;
 
 void initWebServer()
 {
@@ -22,42 +19,23 @@ void initWebServer()
     registrarCuestionarioController(server);
     registrarRespuestaController(server);
 
-    DefaultHeaders::Instance().addHeader("Connection", "close");
-
     // -----------------------------------------------------------------------
-    // HEARTBEAT DE CÁMARA DESDE EL FRONTEND
-    // -----------------------------------------------------------------------
-    server.on("/api/camara/ping", HTTP_GET, [](AsyncWebServerRequest *request)
-    {
-        Serial.printf("[WEB] Ping camara recibido de: %s\n", request->client()->remoteIP().toString().c_str());
-        ultimoPingCamara = millis(); 
-        request->send(200, "text/plain", "OK");
-    });
-
-    // -----------------------------------------------------------------------
-    // opencv.js desde SD (Envío nativo gestionado por AsyncWebServer)
+    // opencv.js desde SD
     // -----------------------------------------------------------------------
     server.on("/opencv.js", HTTP_GET, [](AsyncWebServerRequest *request)
-    {
-        String ip = request->client()->remoteIP().toString();
-        Serial.printf("[OpenCV][%s] Pedido recibido (heap libre: %u)\n", 
-                      ip.c_str(), ESP.getFreeHeap());
-
-        if (!SD.exists("/opencv.js.gz"))
+              {
+        if (!SD.exists("/opencv.js"))
         {
-            Serial.printf("[OpenCV][%s] ERROR: opencv.js.gz no encontrado en la SD.\n", ip.c_str());
             request->send(404, "text/plain", "opencv.js no encontrado en SD.");
             return;
         }
 
-        AsyncWebServerResponse *response = request->beginResponse(SD, "/opencv.js.gz", "text/javascript");
-        
-        response->addHeader("Content-Encoding", "gzip");
-        response->addHeader("Cache-Control", "max-age=31536000");
-        response->addHeader("Connection", "close");
+        AsyncWebServerResponse* response =
+            request->beginResponse(SD, "/opencv.js", "text/javascript");
 
-        request->send(response);
-    });
+        response->addHeader("Cache-Control", "max-age=31536000");
+
+        request->send(response); });
 
     // -----------------------------------------------------------------------
     // Redirección IP -> levi.local
@@ -81,7 +59,7 @@ void initWebServer()
         .setDefaultFile("index.html");
 
     // -----------------------------------------------------------------------
-    // 404 - Catch-All para React (Single Page Application) + CORS preflight
+    // 404 - Catch-All  + CORS 
     // -----------------------------------------------------------------------
     server.onNotFound([](AsyncWebServerRequest *request)
     {

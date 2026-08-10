@@ -5,7 +5,6 @@ String extraerToken(AsyncWebServerRequest* request) {
 
     String auth = request->getHeader("Authorization")->value();
 
-    // Formato esperado: "Bearer <token>"
     if (!auth.startsWith("Bearer ")) return "";
 
     return auth.substring(7); 
@@ -27,7 +26,6 @@ bool verificarSesionPanel(AsyncWebServerRequest* request, const String& rolReque
         }
     }
 
-    // Actualizar actividad de la sesión en cada request válido
     SessionManager::getInstance().heartbeatPanel(token);
     return true;
 }

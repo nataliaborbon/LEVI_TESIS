@@ -6,7 +6,6 @@
 
 // ---------------------------------------------------------------------------
 // POST /api/alumno/iniciar
-// Público: cualquier dispositivo puede intentar entrar como alumno.
 // ---------------------------------------------------------------------------
 static void handleAlumnoIniciar(AsyncWebServerRequest* request, uint8_t* data,
                                   size_t len, size_t, size_t) {
@@ -23,7 +22,6 @@ static void handleAlumnoIniciar(AsyncWebServerRequest* request, uint8_t* data,
 
 // ---------------------------------------------------------------------------
 // GET /api/alumno/estado
-// Header: Authorization: Bearer <token>
 // ---------------------------------------------------------------------------
 static void handleAlumnoEstado(AsyncWebServerRequest* request) {
     if (!verificarSesionAlumno(request)) return;
@@ -62,9 +60,6 @@ static void handleAlumnoEstado(AsyncWebServerRequest* request) {
 
 // ---------------------------------------------------------------------------
 // POST /api/alumno/responder
-// Header: Authorization: Bearer <token>
-// Body: { idPregunta, idOpcion }
-// En modo invitado: { idPregunta: 0, idOpcion: <índice 0-3> }
 // ---------------------------------------------------------------------------
 static void handleAlumnoResponder(AsyncWebServerRequest* request, uint8_t* data,
                                     size_t len, size_t, size_t) {
@@ -84,20 +79,6 @@ static void handleAlumnoResponder(AsyncWebServerRequest* request, uint8_t* data,
         return;
     }
 
-    // --- NUEVO: EL DESVÍO EN RAM PARA EL INVITADO ---
-    if (idPregunta == 0) {
-        // Al responder la pregunta del invitado, la limpiamos de la RAM de inmediato.
-        // Asegurate de que el método limpiarPreguntaInvitado() exista en tu SessionManager.h
-        SessionManager::getInstance().limpiarPreguntaInvitado(); 
-        
-        // Devolvemos un flag especial para que React sepa qué hacer
-        String json = "{\"ok\":true,\"esInvitado\":true}";
-        enviarJSON(request, 200, json);
-        return;
-    }
-    // ------------------------------------------------
-
-    // Si no es el invitado (ID > 0), sigue el flujo normal hacia la SD/Flash
     RespuestaResult result = RespuestaService::getInstance()
                              .responder(idPregunta, idOpcion);
 
@@ -119,7 +100,6 @@ static void handleAlumnoResponder(AsyncWebServerRequest* request, uint8_t* data,
 
 // ---------------------------------------------------------------------------
 // POST /api/alumno/heartbeat
-// Header: Authorization: Bearer <token>
 // ---------------------------------------------------------------------------
 static void handleAlumnoHeartbeat(AsyncWebServerRequest* request, uint8_t* data,
                                     size_t len, size_t, size_t) {
@@ -133,8 +113,6 @@ static void handleAlumnoHeartbeat(AsyncWebServerRequest* request, uint8_t* data,
 
 // ---------------------------------------------------------------------------
 // POST /api/invitado/pregunta
-// Header: Authorization: Bearer <token> (sesión panel invitado)
-// Body: { pregunta, opciones: ["...", "...", ...] }
 // ---------------------------------------------------------------------------
 static void handleInvitadoPregunta(AsyncWebServerRequest* request, uint8_t* data,
                                      size_t len, size_t, size_t) {

@@ -4,6 +4,7 @@
 #include <lvgl.h>
 #include "ui/screens.h"
 #include "session/SessionManager.h"
+#include "network/CameraMonitor.h"
 
 #define SCREEN_WIDTH 320
 #define SCREEN_HEIGHT 240
@@ -15,20 +16,16 @@
 #define XPT2046_CLK 25
 #define XPT2046_CS 33
 
-// Configuración de la Suspensión
+// Configuración de la Suspensión ---
 #define BACKLIGHT_PIN 21
-#define TIMEOUT_INACTIVIDAD_MS 60000
+#define TIMEOUT_INACTIVIDAD_MS 60000 // 60 segundos (1 minuto)
 
 static uint32_t last_touch_time = 0;
 static bool screen_awake = true;
 
-extern unsigned long ultimoPingCamara;
-extern bool g_esPrimerInicio; 
-
 TFT_eSPI tft = TFT_eSPI();
 
-
-__attribute__((aligned(16))) static uint8_t draw_buf[SCREEN_WIDTH * SCREEN_HEIGHT / 20 * 2];
+__attribute__((aligned(16))) static uint8_t draw_buf[SCREEN_WIDTH * SCREEN_HEIGHT / 40 * 2];
 
 // =========================================================
 // DRIVER TÁCTIL POR SOFTWARE (BITBANG)
@@ -75,6 +72,7 @@ void my_touchpad_read(lv_indev_t *indev, lv_indev_data_t *data)
 {
   if (digitalRead(XPT2046_IRQ) == LOW)
   {
+    //Lógica de despertar
     last_touch_time = millis();
 
     if (!screen_awake) {
@@ -123,16 +121,20 @@ static uint32_t my_tick_get_cb(void)
 
 void ui_init(bool isFirstBoot)
 {
+  //Configurar Pin de Iluminación
   pinMode(BACKLIGHT_PIN, OUTPUT);
   digitalWrite(BACKLIGHT_PIN, HIGH);
   last_touch_time = millis();
 
+  // 1. Inicializar Pantalla (Usa Hardware SPI)
   tft.begin();
   tft.setRotation(1);
   tft.fillScreen(TFT_BLACK);
 
+  // 2. Inicializar Táctil (Usa Software SPI)
   touch_init();
 
+  // 3. Inicializar LVGL
   lv_init();
   lv_tick_set_cb(my_tick_get_cb);
 
@@ -147,7 +149,7 @@ void ui_init(bool isFirstBoot)
   // 4. DECIDIR QUÉ INTERFAZ CARGAR
   if (isFirstBoot)
   {
-    ui_screen_setup_init(); 
+    ui_screen_setup_init();
   }
   else
   {
@@ -167,32 +169,27 @@ void ui_loop()
     t0 = t;
   }
 
-  if (!g_esPrimerInicio) 
-  {
-    // 1. ACTUALIZAR USUARIO
-    static String ultimo_usuario_ui = "@@@"; 
-    String usuario_actual = SessionManager::getInstance().hayPanelActivo() ? 
-                            SessionManager::getInstance().getSesionPanel().nombre : "";
+  static String ultimo_usuario_ui = "@@@"; // Valor imposible para forzar primera carga
+  String usuario_actual = SessionManager::getInstance().hayPanelActivo() ? 
+                          SessionManager::getInstance().getSesionPanel().nombre : "";
 
-    if (usuario_actual != ultimo_usuario_ui) {
-        ui_update_usuario(usuario_actual.c_str());
-        ultimo_usuario_ui = usuario_actual;
-    }
-
-    // 2. ACTUALIZAR CÁMARA
-    static bool ultima_camara_ui = false; 
-    static bool primera_vez_camara = true;
-    
-    bool camara_actual = (ultimoPingCamara > 0) && (millis() - ultimoPingCamara < 4000);
-
-    if (camara_actual != ultima_camara_ui || primera_vez_camara) {
-        ui_update_camara(camara_actual);
-        ultima_camara_ui = camara_actual;
-        primera_vez_camara = false;
-    }
+  if (usuario_actual != ultimo_usuario_ui) {
+      ui_update_usuario(usuario_actual.c_str());
+      ultimo_usuario_ui = usuario_actual;
   }
 
-  // 3. SUSPENSIÓN POR INACTIVIDAD TÁCTIL
+  cameraMonitor_loop();
+
+  static bool ultima_camara_ui = false;
+  static bool primera_vez_camara = true;
+  bool camara_actual = cameraMonitor_isConectada();
+
+  if (camara_actual != ultima_camara_ui || primera_vez_camara) {
+      ui_update_camara(camara_actual);
+      ultima_camara_ui = camara_actual;
+      primera_vez_camara = false;
+  }
+
   if (screen_awake && (millis() - last_touch_time > TIMEOUT_INACTIVIDAD_MS)) {
     screen_awake = false;
     digitalWrite(BACKLIGHT_PIN, LOW);
