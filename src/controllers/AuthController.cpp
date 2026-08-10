@@ -41,8 +41,7 @@ static void handleLogin(AsyncWebServerRequest* request, uint8_t* data,
 // ---------------------------------------------------------------------------
 // POST /api/auth/invitado
 // ---------------------------------------------------------------------------
-static void handleLoginInvitado(AsyncWebServerRequest* request, uint8_t* data,
-                                  size_t len, size_t, size_t) {
+static void handleLoginInvitado(AsyncWebServerRequest* request) {
     AuthResult result = AuthService::getInstance().loginInvitado();
 
     if (!result.ok) {
@@ -107,8 +106,7 @@ void registrarAuthController(AsyncWebServer& server) {
     server.on("/api/auth/login",     HTTP_POST, [](AsyncWebServerRequest* r){},
               nullptr, handleLogin);
 
-    server.on("/api/auth/invitado",  HTTP_POST, [](AsyncWebServerRequest* r){},
-              nullptr, handleLoginInvitado);
+    server.on("/api/auth/invitado", HTTP_POST, handleLoginInvitado);
 
     server.on("/api/auth/logout", HTTP_POST, [](AsyncWebServerRequest* r) {
         if (!verificarSesionPanel(r)) return;
