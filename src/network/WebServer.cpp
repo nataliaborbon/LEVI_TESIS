@@ -24,7 +24,7 @@ void initWebServer()
     // -----------------------------------------------------------------------
     server.on("/opencv.js", HTTP_GET, [](AsyncWebServerRequest *request)
               {
-        if (!SD.exists("/opencv.js"))
+        if (!SD.exists("/opencv.js") && !SD.exists("/opencv.js.gz"))
         {
             request->send(404, "text/plain", "opencv.js no encontrado en SD.");
             return;
