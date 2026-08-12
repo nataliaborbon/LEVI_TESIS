@@ -225,10 +225,10 @@ private:
     PreguntaInvitado _preguntaInvitado;
 
     /// @brief Timeout en ms para profesor y tutor (10 minutos).
-    static constexpr unsigned long TIMEOUT_PANEL_MS    = 10UL * 60UL * 1000UL;
+    static constexpr unsigned long TIMEOUT_PANEL_MS    = 10UL * 1000UL;
 
     /// @brief Timeout en ms para invitado (5 minutos).
-    static constexpr unsigned long TIMEOUT_INVITADO_MS =  5UL * 60UL * 1000UL;
+    static constexpr unsigned long TIMEOUT_INVITADO_MS =  5UL * 1000UL;
 
     /// @brief Timeout en ms para alumno (30 segundos).
     static constexpr unsigned long TIMEOUT_ALUMNO_MS   = 30UL * 1000UL;

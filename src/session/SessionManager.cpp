@@ -152,8 +152,46 @@ void SessionManager::limpiarPreguntaInvitado() {
 // Tick de timeouts
 // ---------------------------------------------------------------------------
 
+// ---------------------------------------------------------------------------
+// Tick de timeouts
+// ---------------------------------------------------------------------------
+
 void SessionManager::tick() {
     unsigned long ahora = millis();
+
+    // --- NUEVO: Reporte de diagnóstico cada 10 segundos ---
+    static unsigned long ultimoReporte = 0;
+    if (ahora - ultimoReporte >= 10000) {
+        ultimoReporte = ahora;
+        Serial.println("\n=== ESTADO DE SESIONES (RAM) ===");
+        
+        // 1. Panel (Profesor / Tutor / Invitado)
+        if (_panel.activa) {
+            Serial.printf("[+] PANEL   : ACTIVO | Rol: %-8s | Inactividad: %lu ms\n", 
+                          _panel.rol.c_str(), (ahora - _panel.ultimaActividad));
+        } else {
+            Serial.println("[-] PANEL   : INACTIVO");
+        }
+
+        // 2. Alumno
+        if (_alumno.activa) {
+            Serial.printf("[+] ALUMNO  : ACTIVO | Inactividad: %lu ms\n", 
+                          (ahora - _alumno.ultimaActividad));
+        } else {
+            Serial.println("[-] ALUMNO  : INACTIVO");
+        }
+
+        // 3. Pregunta en RAM del Invitado
+        if (_preguntaInvitado.cargada) {
+            Serial.printf("[+] INVITADO: Pregunta cargada ('%s')\n", 
+                          _preguntaInvitado.textoOpregunta.c_str());
+        } else {
+            Serial.println("[-] INVITADO: Sin pregunta en espera");
+        }
+        
+        Serial.println("================================\n");
+    }
+    // ------------------------------------------------------
 
     if (_panel.activa) {
         unsigned long timeout = (_panel.rol == "invitado")
