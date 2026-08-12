@@ -22,7 +22,7 @@ static void handleCrear(AsyncWebServerRequest *request, uint8_t *data,
     u.nombre = doc["nombre"] | "";
     u.apellido = doc["apellido"] | "";
     u.rol = doc["rol"] | "";
-    u.materia = doc["materia"] | "";
+    u.referencia = doc["referencia"] | "";
     u.contacto = doc["contacto"] | "";
 
     String password = doc["password"] | "";
@@ -96,7 +96,7 @@ static void handleObtenerPerfil(AsyncWebServerRequest *request) {
     resp["usuario"] = u.usuario;
     resp["nombre"] = u.nombre;
     resp["apellido"] = u.apellido;
-    resp["materia"] = u.materia;
+    resp["referencia"] = u.referencia;
     resp["contacto"] = u.contacto;
 
     String json;
@@ -137,7 +137,7 @@ static void handleEditarPerfil(AsyncWebServerRequest *request, uint8_t *data,
     u.usuario = doc["usuario"] | u.usuario;
     u.nombre = doc["nombre"] | u.nombre;
     u.apellido = doc["apellido"] | u.apellido;
-    u.materia = doc["materia"] | u.materia;
+    u.referencia = doc["referencia"] | u.referencia;
     u.contacto = doc["contacto"] | u.contacto;
 
     UsuarioResult result = UsuarioService::getInstance().editarPerfil(u);
@@ -228,7 +228,7 @@ static void handleListarProfesores(AsyncWebServerRequest *request)
         return;
     }
 
-    ProfesorResumen buffer[20];
+    UsuarioResumen buffer[20];
     int cant = UsuarioService::getInstance().listarProfesores(buffer, 20);
 
     StaticJsonDocument<2048> resp;
@@ -241,7 +241,7 @@ static void handleListarProfesores(AsyncWebServerRequest *request)
         obj["idUsuario"] = buffer[i].idUsuario;
         obj["nombre"] = buffer[i].nombre;
         obj["apellido"] = buffer[i].apellido;
-        obj["materia"] = buffer[i].materia;
+        obj["materia"] = buffer[i].referencia;
         obj["contacto"] = buffer[i].contacto;
     }
 
@@ -265,7 +265,7 @@ static void handleListarTutores(AsyncWebServerRequest *request)
         return;
     }
 
-    TutorResumen buffer[20];
+    UsuarioResumen buffer[20];
     int cant = UsuarioService::getInstance().listarTutores(buffer, 20);
 
     StaticJsonDocument<2048> resp;
@@ -278,6 +278,7 @@ static void handleListarTutores(AsyncWebServerRequest *request)
         obj["idUsuario"] = buffer[i].idUsuario;
         obj["nombre"] = buffer[i].nombre;
         obj["apellido"] = buffer[i].apellido;
+        obj["vinculo"] = buffer[i].referencia;
         obj["contacto"] = buffer[i].contacto;
     }
 

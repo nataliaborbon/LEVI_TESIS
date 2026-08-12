@@ -23,8 +23,13 @@ String UsuarioService::_validarCampos(const Usuario& u) {
     if (u.contacto.length() == 0)
         return "El contacto es obligatorio.";
 
-    if (u.rol == "profesor" && u.materia.length() == 0)
-        return "La materia es obligatoria para profesores.";
+    if (u.referencia.length() == 0){
+        if(u.rol == "profesor")
+            return "La materia es obligatoria para profesores.";
+        else 
+            return "El vinculo es obligatorio para los tutores.";
+    }
+        
 
     return "";
 }
@@ -237,10 +242,10 @@ Usuario UsuarioService::obtenerPerfil(int idUsuario) {
 // Listados
 // ---------------------------------------------------------------------------
 
-int UsuarioService::listarProfesores(ProfesorResumen* buffer, int maxSize) {
+int UsuarioService::listarProfesores(UsuarioResumen* buffer, int maxSize) {
     return UsuarioRepository::getInstance().listarProfesores(buffer, maxSize);
 }
 
-int UsuarioService::listarTutores(TutorResumen* buffer, int maxSize) {
+int UsuarioService::listarTutores(UsuarioResumen* buffer, int maxSize) {
     return UsuarioRepository::getInstance().listarTutores(buffer, maxSize);
 }

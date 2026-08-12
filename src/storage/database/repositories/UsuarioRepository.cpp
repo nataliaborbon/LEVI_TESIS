@@ -8,8 +8,8 @@ Usuario UsuarioRepository::_filaAUsuario(sqlite3_stmt* stmt) {
     u.apellido     = String((const char*)sqlite3_column_text(stmt, 3));
     u.rol          = String((const char*)sqlite3_column_text(stmt, 4));
 
-    const char* materia = (const char*)sqlite3_column_text(stmt, 5);
-    u.materia = materia ? String(materia) : "";
+    const char* referencia = (const char*)sqlite3_column_text(stmt, 5);
+    u.referencia = referencia ? String(referencia) : "";
 
     u.contacto     = String((const char*)sqlite3_column_text(stmt, 6));
     u.hashPassword = String((const char*)sqlite3_column_text(stmt, 7));
@@ -23,7 +23,7 @@ DbResult UsuarioRepository::crear(const Usuario& u) {
 
     const char* sql = R"(
         INSERT INTO usuarios
-            (usuario, nombre, apellido, rol, materia, contacto, hashPassword, salt)
+            (usuario, nombre, apellido, rol, referencia, contacto, hashPassword, salt)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?);
     )";
 
@@ -37,13 +37,7 @@ DbResult UsuarioRepository::crear(const Usuario& u) {
     sqlite3_bind_text(stmt, 2, u.nombre.c_str(),       -1, SQLITE_TRANSIENT);
     sqlite3_bind_text(stmt, 3, u.apellido.c_str(),     -1, SQLITE_TRANSIENT);
     sqlite3_bind_text(stmt, 4, u.rol.c_str(),          -1, SQLITE_TRANSIENT);
-
-    if (u.materia.length() > 0) {
-        sqlite3_bind_text(stmt, 5, u.materia.c_str(),  -1, SQLITE_TRANSIENT);
-    } else {
-        sqlite3_bind_null(stmt, 5);
-    }
-
+    sqlite3_bind_text(stmt, 5, u.referencia.c_str(),   -1, SQLITE_TRANSIENT);
     sqlite3_bind_text(stmt, 6, u.contacto.c_str(),     -1, SQLITE_TRANSIENT);
     sqlite3_bind_text(stmt, 7, u.hashPassword.c_str(), -1, SQLITE_TRANSIENT);
     sqlite3_bind_text(stmt, 8, u.salt.c_str(),         -1, SQLITE_TRANSIENT);
@@ -64,7 +58,7 @@ Usuario UsuarioRepository::buscarPorUsuario(const String& usuario) {
     sqlite3* db = DatabaseManager::getInstance().getDB();
 
     const char* sql = R"(
-        SELECT idUsuario, usuario, nombre, apellido, rol, materia,
+        SELECT idUsuario, usuario, nombre, apellido, rol, referencia,
                contacto, hashPassword, salt
         FROM usuarios WHERE usuario = ?;
     )";
@@ -85,7 +79,7 @@ Usuario UsuarioRepository::buscarPorId(int idUsuario) {
     sqlite3* db = DatabaseManager::getInstance().getDB();
 
     const char* sql = R"(
-        SELECT idUsuario, usuario, nombre, apellido, rol, materia,
+        SELECT idUsuario, usuario, nombre, apellido, rol, referencia,
                contacto, hashPassword, salt
         FROM usuarios WHERE idUsuario = ?;
     )";
@@ -107,7 +101,7 @@ DbResult UsuarioRepository::actualizar(const Usuario& u) {
 
     const char* sql = R"(
         UPDATE usuarios
-        SET usuario = ?, nombre = ?, apellido = ?, materia = ?, contacto = ?
+        SET usuario = ?, nombre = ?, apellido = ?, referencia = ?, contacto = ?
         WHERE idUsuario = ?;
     )";
 
@@ -117,17 +111,11 @@ DbResult UsuarioRepository::actualizar(const Usuario& u) {
         return result;
     }
 
-    sqlite3_bind_text(stmt, 1, u.usuario.c_str(),  -1, SQLITE_TRANSIENT);
-    sqlite3_bind_text(stmt, 2, u.nombre.c_str(),   -1, SQLITE_TRANSIENT);
-    sqlite3_bind_text(stmt, 3, u.apellido.c_str(), -1, SQLITE_TRANSIENT);
-
-    if (u.materia.length() > 0) {
-        sqlite3_bind_text(stmt, 4, u.materia.c_str(), -1, SQLITE_TRANSIENT);
-    } else {
-        sqlite3_bind_null(stmt, 4);
-    }
-
-    sqlite3_bind_text(stmt, 5, u.contacto.c_str(), -1, SQLITE_TRANSIENT);
+    sqlite3_bind_text(stmt, 1, u.usuario.c_str(),       -1, SQLITE_TRANSIENT);
+    sqlite3_bind_text(stmt, 2, u.nombre.c_str(),        -1, SQLITE_TRANSIENT);
+    sqlite3_bind_text(stmt, 3, u.apellido.c_str(),      -1, SQLITE_TRANSIENT);
+    sqlite3_bind_text(stmt, 4, u.referencia.c_str(),    -1, SQLITE_TRANSIENT);
+    sqlite3_bind_text(stmt, 5, u.contacto.c_str(),      -1, SQLITE_TRANSIENT);
     sqlite3_bind_int (stmt, 6, u.idUsuario);
 
     result.ok = (sqlite3_step(stmt) == SQLITE_DONE);
@@ -213,12 +201,12 @@ bool UsuarioRepository::existeUsuarioExcluyendo(const String& usuario, int exclu
     return existe;
 }
 
-int UsuarioRepository::listarProfesores(ProfesorResumen* buffer, int maxSize) {
+int UsuarioRepository::listarProfesores(UsuarioResumen* buffer, int maxSize) {
     sqlite3* db = DatabaseManager::getInstance().getDB();
     int count = 0;
 
     const char* sql = R"(
-        SELECT idUsuario, nombre, apellido, materia, contacto
+        SELECT idUsuario, nombre, apellido, referencia, contacto
         FROM usuarios
         WHERE rol = 'profesor'
         ORDER BY apellido, nombre;
@@ -228,14 +216,11 @@ int UsuarioRepository::listarProfesores(ProfesorResumen* buffer, int maxSize) {
     if (sqlite3_prepare_v2(db, sql, -1, &stmt, nullptr) != SQLITE_OK) return 0;
 
     while (sqlite3_step(stmt) == SQLITE_ROW && count < maxSize) {
-        ProfesorResumen& p = buffer[count++];
+        UsuarioResumen& p = buffer[count++];
         p.idUsuario = sqlite3_column_int(stmt, 0);
         p.nombre    = String((const char*)sqlite3_column_text(stmt, 1));
         p.apellido  = String((const char*)sqlite3_column_text(stmt, 2));
-
-        const char* materia = (const char*)sqlite3_column_text(stmt, 3);
-        p.materia = materia ? String(materia) : "";
-
+        p.referencia  = String((const char*)sqlite3_column_text(stmt, 2));
         p.contacto  = String((const char*)sqlite3_column_text(stmt, 4));
     }
 
@@ -243,12 +228,12 @@ int UsuarioRepository::listarProfesores(ProfesorResumen* buffer, int maxSize) {
     return count;
 }
 
-int UsuarioRepository::listarTutores(TutorResumen* buffer, int maxSize) {
+int UsuarioRepository::listarTutores(UsuarioResumen* buffer, int maxSize) {
     sqlite3* db = DatabaseManager::getInstance().getDB();
     int count = 0;
 
     const char* sql = R"(
-        SELECT idUsuario, nombre, apellido, contacto
+        SELECT idUsuario, nombre, apellido, referencia, contacto
         FROM usuarios
         WHERE rol = 'tutor'
         ORDER BY apellido, nombre;
@@ -258,7 +243,7 @@ int UsuarioRepository::listarTutores(TutorResumen* buffer, int maxSize) {
     if (sqlite3_prepare_v2(db, sql, -1, &stmt, nullptr) != SQLITE_OK) return 0;
 
     while (sqlite3_step(stmt) == SQLITE_ROW && count < maxSize) {
-        TutorResumen& t = buffer[count++];
+        UsuarioResumen& t = buffer[count++];
         t.idUsuario = sqlite3_column_int(stmt, 0);
         t.nombre    = String((const char*)sqlite3_column_text(stmt, 1));
         t.apellido  = String((const char*)sqlite3_column_text(stmt, 2));

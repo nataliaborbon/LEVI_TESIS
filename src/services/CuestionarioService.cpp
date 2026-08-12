@@ -595,4 +595,3 @@ int CuestionarioService::obtenerRevision(int idCuestionario,
 
     return PreguntaRepository::getInstance()
            .listarRevision(idCuestionario, buffer, maxSize);
-}
