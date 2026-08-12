@@ -105,6 +105,7 @@ RespuestaResult RespuestaService::responder(int idPregunta, int idOpcion) {
         result.ok       = true;
         result.finalizo = true;
         result.mensaje  = pregInv.opciones[idOpcion];
+        SessionManager::getInstance().limpiarPreguntaInvitado();
         return result;
     }
 
