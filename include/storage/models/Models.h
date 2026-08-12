@@ -23,7 +23,7 @@ struct Usuario
     String nombre = "";
     String apellido = "";
     String rol = "";   
-    String materia = ""; 
+    String referencia = ""; 
     String contacto = "";
     String hashPassword = "";
     String salt = "";
@@ -78,6 +78,20 @@ struct Pregunta
     float puntajeIncorrecta = 0.0f;
 };
 
+/**
+ * @brief Resumen de un usuario para el panel.
+ * @note El tutor puede ver la lista de profesores con su materia y contacto, 
+ * y el profesor puede ver la lista de tutores con su vinculo y contacto.
+ */
+struct UsuarioResumen
+{
+    int idUsuario = 0;
+    String nombre = "";
+    String apellido = "";
+    String referencia = "";
+    String contacto = "";
+};
+
 // ===========================================================================
 // DTOs DE CREACIÓN
 // Se usan para recibir datos del frontend al crear/editar.
@@ -115,18 +129,6 @@ struct CuestionarioResumenProfesor
     int cantPreguntas = 0;
 };
 
-/**
- * @brief Resumen de un tutor para el panel del profesor.
- * @note El profesor puede ver la lista de tutores y su contacto.
- */
-struct TutorResumen
-{
-    int idUsuario = 0;
-    String nombre = "";
-    String apellido = "";
-    String contacto = "";
-};
-
 // ===========================================================================
 // DTOs DE LECTURA PARA EL PANEL DEL TUTOR
 // ===========================================================================
@@ -149,18 +151,6 @@ struct CuestionarioResumenTutor
     String materia = ""; 
 };
 
-/**
- * @brief Resumen de un profesor para el panel del tutor.
- * @note El tutor puede ver la lista de profesores con su materia y contacto.
- */
-struct ProfesorResumen
-{
-    int idUsuario = 0;
-    String nombre = "";
-    String apellido = "";
-    String materia = "";
-    String contacto = "";
-};
 
 // ===========================================================================
 // DTOs DE REVISIÓN DE CUESTIONARIO FINALIZADO

@@ -91,7 +91,7 @@ static void handlePerfil(AsyncWebServerRequest* request) {
     resp["nombre"]    = u.nombre;
     resp["apellido"]  = u.apellido;
     resp["rol"]       = u.rol;
-    resp["materia"]   = u.materia;
+    resp["referencia"]   = u.referencia;
     resp["contacto"]  = u.contacto;
 
     String json;
