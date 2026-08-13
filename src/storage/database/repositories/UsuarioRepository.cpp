@@ -201,6 +201,10 @@ bool UsuarioRepository::existeUsuarioExcluyendo(const String& usuario, int exclu
     return existe;
 }
 
+// ---------------------------------------------------------------------------
+// Listados
+// ---------------------------------------------------------------------------
+
 int UsuarioRepository::listarProfesores(UsuarioResumen* buffer, int maxSize) {
     sqlite3* db = DatabaseManager::getInstance().getDB();
     int count = 0;
@@ -217,11 +221,11 @@ int UsuarioRepository::listarProfesores(UsuarioResumen* buffer, int maxSize) {
 
     while (sqlite3_step(stmt) == SQLITE_ROW && count < maxSize) {
         UsuarioResumen& p = buffer[count++];
-        p.idUsuario = sqlite3_column_int(stmt, 0);
-        p.nombre    = String((const char*)sqlite3_column_text(stmt, 1));
-        p.apellido  = String((const char*)sqlite3_column_text(stmt, 2));
-        p.referencia  = String((const char*)sqlite3_column_text(stmt, 2));
-        p.contacto  = String((const char*)sqlite3_column_text(stmt, 4));
+        p.idUsuario  = sqlite3_column_int(stmt, 0);
+        p.nombre     = String((const char*)sqlite3_column_text(stmt, 1));
+        p.apellido   = String((const char*)sqlite3_column_text(stmt, 2));
+        p.referencia = String((const char*)sqlite3_column_text(stmt, 3)); 
+        p.contacto   = String((const char*)sqlite3_column_text(stmt, 4));
     }
 
     sqlite3_finalize(stmt);
@@ -244,10 +248,11 @@ int UsuarioRepository::listarTutores(UsuarioResumen* buffer, int maxSize) {
 
     while (sqlite3_step(stmt) == SQLITE_ROW && count < maxSize) {
         UsuarioResumen& t = buffer[count++];
-        t.idUsuario = sqlite3_column_int(stmt, 0);
-        t.nombre    = String((const char*)sqlite3_column_text(stmt, 1));
-        t.apellido  = String((const char*)sqlite3_column_text(stmt, 2));
-        t.contacto  = String((const char*)sqlite3_column_text(stmt, 3));
+        t.idUsuario  = sqlite3_column_int(stmt, 0);
+        t.nombre     = String((const char*)sqlite3_column_text(stmt, 1));
+        t.apellido   = String((const char*)sqlite3_column_text(stmt, 2));
+        t.referencia = String((const char*)sqlite3_column_text(stmt, 3)); 
+        t.contacto   = String((const char*)sqlite3_column_text(stmt, 4)); 
     }
 
     sqlite3_finalize(stmt);

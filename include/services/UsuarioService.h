@@ -127,7 +127,7 @@ public:
      * @param maxSize Capacidad máxima del array.
      * @return Cantidad de profesores encontrados.
      */
-    int listarProfesores(ProfesorResumen* buffer, int maxSize);
+    int listarProfesores(UsuarioResumen* buffer, int maxSize);
 
     /**
      * @brief Lista los tutores en formato resumido.
@@ -135,7 +135,7 @@ public:
      * @param maxSize Capacidad máxima del array.
      * @return Cantidad de tutores encontrados.
      */
-    int listarTutores(TutorResumen* buffer, int maxSize);
+    int listarTutores(UsuarioResumen* buffer, int maxSize);
 
 private:
     UsuarioService() {}
