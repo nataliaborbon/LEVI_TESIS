@@ -1,6 +1,8 @@
 #include "controllers/RespuestaController.h"
 #include "middleware/Middleware.h"
 #include "services/RespuestaService.h"
+#include "services/CuestionarioService.h"
+#include "storage/database/repositories/CuestionarioRepository.h"
 #include "session/SessionManager.h"
 #include <ArduinoJson.h>
 
@@ -47,13 +49,6 @@ static void handleAlumnoEstado(AsyncWebServerRequest* request) {
         }
     }
 
-    if (estado.estado == "finalizado") {
-        json += ",\"puntajeObtenido\":"    + String(estado.puntajeObtenido);
-        json += ",\"puntajeParaAprobar\":" + String(estado.puntajeParaAprobar);
-        json += ",\"aprobado\":"           + String(estado.aprobado ? "true" : "false");
-        json += ",\"tiempoSegundos\":"     + String(estado.tiempoSegundos);
-    }
-
     json += "}";
     enviarJSON(request, 200, json);
 }
@@ -90,6 +85,13 @@ static void handleAlumnoResponder(AsyncWebServerRequest* request, uint8_t* data,
     String json = "{\"ok\":true";
     json += ",\"fueCorrecto\":"  + String(result.fueCorrecto ? "true" : "false");
     json += ",\"finalizo\":"     + String(result.finalizo    ? "true" : "false");
+    if (result.finalizo) {
+        json += ",\"puntajeObtenido\":"    + String(result.resultado.puntajeObtenido);
+        json += ",\"puntajeParaAprobar\":" + String(result.resultado.puntajeParaAprobar);
+        json += ",\"puntajeMaximo\":"      + String(result.resultado.puntajeMaximo);
+        json += ",\"aprobado\":"           + String(result.aprobado ? "true" : "false");
+        json += ",\"tiempoSegundos\":"     + String(result.resultado.tiempoSegundos);
+    }
     if (result.mensaje.length() > 0) {
         json += ",\"mensaje\":\"" + result.mensaje + "\"";
     }
@@ -108,6 +110,14 @@ static void handleAlumnoHeartbeat(AsyncWebServerRequest* request, uint8_t* data,
         enviarError(request, 401, "Sesión de alumno inválida o expirada.");
         return;
     }
+
+    // obtenerActivo() acá SÍ tiene sentido: durante el examen el
+    // cuestionario está en_progreso, que es justo lo que filtra.
+    Cuestionario activo = CuestionarioRepository::getInstance().obtenerActivo();
+    if (activo.idCuestionario != 0) {
+        CuestionarioService::getInstance().procesarHeartbeatCronometro(activo.idCuestionario);
+    }
+
     enviarOk(request, "ok");
 }
 

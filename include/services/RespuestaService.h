@@ -20,18 +20,12 @@
  * @brief Estado actual del examen para el alumno.
  */
 struct EstadoAlumno {
-    String estado          = "esperando"; // "esperando"|"en_progreso"|"pausado"|"finalizado"|"invitado"
+    String estado          = "esperando"; // "esperando"|"en_progreso"|"invitado"
     bool   hayPregunta     = false;
     String tituloCuestionario = "";
 
     // Datos de la pregunta actual (si hay)
     PreguntaAlumno pregunta;
-
-    // Datos del resultado (si finalizó)
-    float  puntajeObtenido    = 0.0f;
-    float  puntajeParaAprobar = 0.0f;
-    bool   aprobado           = false;
-    int    tiempoSegundos     = 0;
 };
 
 /**
@@ -41,7 +35,11 @@ struct RespuestaResult {
     bool   ok          = false;
     bool   fueCorrecto = false;
     bool   finalizo    = false; // true si era la última pregunta
+    bool   aprobado    = false; // válido solo si finalizo == true
     String mensaje     = "";
+
+    // Datos de puntaje/tiempo, válidos solo si finalizo == true.
+    ResultadoFinalizacion resultado;
 };
 
 /**
@@ -83,12 +81,13 @@ public:
     /**
      * @brief Devuelve el estado actual del examen para mostrar en la pantalla del alumno.
      *
-     * Determina qué mostrar según el cuestionario activo:
-     *   - "esperando"   → no hay cuestionario en_progreso ni invitado activo
-     *   - "en_progreso" → hay cuestionario activo, devuelve la siguiente pregunta sin responder
-     *   - "pausado"     → el cuestionario está pausado
-     *   - "finalizado"  → el cuestionario finalizó, devuelve resultado
-     *   - "invitado"    → hay una pregunta de invitado en RAM
+     * La pantalla del alumno solo necesita distinguir dos casos reales:
+     *   - "en_progreso" → hay cuestionario activo (o invitado), devuelve la pregunta
+     *   - "esperando"   → no hay nada para mostrar
+     *
+     * El resultado de finalización NO se consulta por acá: llega en la
+     * respuesta directa de responder() (ver RespuestaResult), porque es
+     * en ese momento cuando efectivamente se calcula y persiste.
      *
      * @return EstadoAlumno con toda la información necesaria para el frontend.
      */
@@ -110,6 +109,9 @@ public:
      * @brief Registra la respuesta del alumno a la pregunta actual.
      *
      * Si es modo normal: guarda idOpcionElegida en BD y evalúa si fue correcta.
+     * Si es la última pregunta del cuestionario, delega en
+     * CuestionarioService::finalizarComoAlumno() para calcular y persistir
+     * el resultado, y lo devuelve ya calculado en RespuestaResult.
      * Si es modo invitado: solo devuelve el texto de la opción elegida (sin BD).
      *
      * @param idPregunta Id de la pregunta respondida (0 si es invitado).

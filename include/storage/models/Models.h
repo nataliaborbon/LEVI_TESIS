@@ -175,6 +175,27 @@ struct PreguntaRevision
 };
 
 // ===========================================================================
+// DTO DE RESULTADO DE FINALIZACIÓN
+// Compartido entre CuestionarioService (finalizar/finalizarComoAlumno) y
+// RespuestaService (responder), para no duplicar estos campos en dos structs.
+// ===========================================================================
+
+/**
+ * @brief Datos de puntaje y tiempo tras finalizar un cuestionario.
+ *
+ * Lo devuelve CuestionarioService al finalizar (ya sea por el profesor o
+ * por el alumno al responder la última pregunta), y lo usan tanto
+ * CuestionarioResult como RespuestaResult para no calcular esto dos veces.
+ */
+struct ResultadoFinalizacion
+{
+    float puntajeObtenido    = 0.0f;
+    float puntajeMaximo      = 0.0f;
+    float puntajeParaAprobar = 0.0f;
+    int   tiempoSegundos     = 0;
+};
+
+// ===========================================================================
 // DTOs PARA EL PANEL DEL ALUMNO
 // ===========================================================================
 

@@ -32,6 +32,18 @@ float CuestionarioService::_calcularPuntaje(int idCuestionario) {
     return puntaje;
 }
 
+float CuestionarioService::_calcularPuntajeMaximo(int idCuestionario) {
+    Pregunta preguntas[MAX_PREGUNTAS_POR_CUESTIONARIO];
+    int cant = PreguntaRepository::getInstance()
+                .listarPorCuestionario(idCuestionario, preguntas, MAX_PREGUNTAS_POR_CUESTIONARIO);
+
+    float maximo = 0.0f;
+    for (int i = 0; i < cant; i++) {
+        maximo += preguntas[i].puntajeCorrecta;
+    }
+    return maximo;
+}
+
 // ---------------------------------------------------------------------------
 // Cronómetro (Impulsado por Heartbeats)
 // ---------------------------------------------------------------------------
@@ -515,6 +527,33 @@ CuestionarioResult CuestionarioService::reanudar(int idCuestionario, int idUsuar
 // Finalizar
 // ---------------------------------------------------------------------------
 
+void CuestionarioService::_finalizarInterno(int idCuestionario, CuestionarioResult& result) {
+    Cuestionario c = CuestionarioRepository::getInstance().buscarPorId(idCuestionario);
+
+    float puntaje       = _calcularPuntaje(idCuestionario);
+    float puntajeMaximo = _calcularPuntajeMaximo(idCuestionario);
+    int tiempoSegundos   = _tiempoTranscurridoSeg(idCuestionario);
+
+    // TODO: fecha real. No hay RTC configurado todavía, se mantiene el
+    // placeholder que ya existía antes de este cambio.
+    String fecha = "2025-01-01T00:00:00";
+
+    DbResult db = CuestionarioRepository::getInstance()
+                  .guardarResultado(idCuestionario, puntaje, fecha, tiempoSegundos);
+    result.ok = db.ok;
+    if (!result.ok) {
+        result.mensaje = db.mensaje;
+        return;
+    }
+
+    result.resultado.puntajeObtenido    = puntaje;
+    result.resultado.puntajeMaximo      = puntajeMaximo;
+    result.resultado.puntajeParaAprobar = c.puntajeParaAprobar;
+    result.resultado.tiempoSegundos     = tiempoSegundos;
+
+    _idCuestionarioTimer = 0;
+}
+
 CuestionarioResult CuestionarioService::finalizar(int idCuestionario, int idUsuario) {
     CuestionarioResult result;
 
@@ -530,19 +569,28 @@ CuestionarioResult CuestionarioService::finalizar(int idCuestionario, int idUsua
         return result;
     }
 
-    float puntaje = _calcularPuntaje(idCuestionario);
-    
-    int tiempoSegundos = _tiempoTranscurridoSeg(idCuestionario);
+    _finalizarInterno(idCuestionario, result);
+    return result;
+}
 
-    String fecha = "2025-01-01T00:00:00";
+CuestionarioResult CuestionarioService::finalizarComoAlumno(int idCuestionario) {
+    CuestionarioResult result;
 
-    DbResult db = CuestionarioRepository::getInstance()
-                  .guardarResultado(idCuestionario, puntaje, fecha, tiempoSegundos);
-    result.ok = db.ok;
-    if (!result.ok) result.mensaje = db.mensaje;
-    
-    _idCuestionarioTimer = 0; 
-    
+    Cuestionario c = CuestionarioRepository::getInstance().buscarPorId(idCuestionario);
+
+    if (c.idCuestionario == 0 || c.estado != "en_progreso") {
+        result.mensaje = "El cuestionario no está en progreso.";
+        return result;
+    }
+
+    int total       = PreguntaRepository::getInstance().contarTotal(idCuestionario);
+    int respondidas = PreguntaRepository::getInstance().contarRespondidas(idCuestionario);
+    if (respondidas < total) {
+        result.mensaje = "Todavía quedan preguntas sin responder.";
+        return result;
+    }
+
+    _finalizarInterno(idCuestionario, result);
     return result;
 }
 

@@ -1,4 +1,5 @@
 #include "services/RespuestaService.h"
+#include "services/CuestionarioService.h"
 #include "storage/database/repositories/CuestionarioRepository.h"
 #include "storage/database/repositories/PreguntaOpcionRepository.h"
 #include <string.h>
@@ -49,6 +50,9 @@ EstadoAlumno RespuestaService::_calcularEstado() {
         return estado;
     }
 
+    // obtenerActivo() filtra WHERE estado='en_progreso', así que si devuelve
+    // algo, ya sabemos que ese es el único estado posible. No hace falta
+    // (ni tiene sentido) volver a comparar activo.estado acá.
     Cuestionario activo = CuestionarioRepository::getInstance().obtenerActivo();
 
     if (activo.idCuestionario == 0) {
@@ -57,21 +61,6 @@ EstadoAlumno RespuestaService::_calcularEstado() {
     }
 
     estado.tituloCuestionario = activo.titulo;
-
-    if (activo.estado == "pausado") {
-        estado.estado = "pausado";
-        return estado;
-    }
-
-    if (activo.estado == "finalizado") {
-        estado.estado             = "finalizado";
-        estado.puntajeObtenido    = activo.puntajeObtenido;
-        estado.puntajeParaAprobar = activo.puntajeParaAprobar;
-        estado.aprobado           = activo.puntajeObtenido >= activo.puntajeParaAprobar;
-        estado.tiempoSegundos     = activo.tiempoSegundos;
-        return estado;
-    }
-
     estado.estado = "en_progreso";
 
     PreguntaAlumno pregAlumno;
@@ -140,6 +129,20 @@ RespuestaResult RespuestaService::responder(int idPregunta, int idOpcion) {
     int total      = PreguntaRepository::getInstance().contarTotal(activo.idCuestionario);
     int respondidas= PreguntaRepository::getInstance().contarRespondidas(activo.idCuestionario);
     result.finalizo = (respondidas >= total);
+
+    if (result.finalizo) {
+        CuestionarioResult finalRes = CuestionarioService::getInstance()
+                                       .finalizarComoAlumno(activo.idCuestionario);
+        if (finalRes.ok) {
+            result.resultado = finalRes.resultado;
+            result.aprobado  = result.resultado.puntajeObtenido >= result.resultado.puntajeParaAprobar;
+        } else {
+            // No debería pasar (ya verificamos respondidas >= total arriba),
+            // pero si falla no rompemos la respuesta de "responder" en sí:
+            // el alumno ya respondió, eso ya quedó guardado.
+            Serial.printf("[RESPONDER] Error al finalizar: %s\n", finalRes.mensaje.c_str());
+        }
+    }
 
     return result;
 }
