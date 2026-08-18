@@ -1,4 +1,5 @@
 #include "controllers/CuestionarioController.h"
+#include "storage/database/repositories/CuestionarioRepository.h"
 #include "middleware/Middleware.h"
 #include "services/CuestionarioService.h"
 #include "session/SessionManager.h"
@@ -370,11 +371,19 @@ static void handleFinalizar(AsyncWebServerRequest* r, uint8_t*, size_t, size_t, 
 static void handleRevision(AsyncWebServerRequest* r) {
     if (!verificarSesionPanel(r)) return;
     if (!r->hasParam("id")) { enviarError(r, 400, "Falta ID"); return; }
-    PreguntaRevision buffer[MAX_PREGUNTAS_POR_CUESTIONARIO];
-    int cant = CuestionarioService::getInstance().obtenerRevision(r->getParam("id")->value().toInt(), buffer, MAX_PREGUNTAS_POR_CUESTIONARIO);
-    if (cant < 0) { enviarError(r, 404, "No encontrado"); return; }
     
-    String json = "{\"ok\":true,\"preguntas\":[";
+    int idCuestionario = r->getParam("id")->value().toInt();
+    
+    PreguntaRevision buffer[MAX_PREGUNTAS_POR_CUESTIONARIO];
+    int cant = CuestionarioService::getInstance().obtenerRevision(idCuestionario, buffer, MAX_PREGUNTAS_POR_CUESTIONARIO);
+    if (cant < 0) { enviarError(r, 404, "No encontrado"); return; }
+
+    // --- NUEVO: Buscamos el cuestionario para leer su tiempo guardado ---
+    Cuestionario c = CuestionarioRepository::getInstance().buscarPorId(idCuestionario);
+    
+    // --- MODIFICADO: Agregamos el tiempoSegundos al inicio del JSON ---
+    String json = "{\"ok\":true,\"tiempoSegundos\":" + String(c.tiempoSegundos) + ",\"preguntas\":[";
+    
     for (int i = 0; i < cant; i++) {
         if (i > 0) json += ",";
         json += "{\"idPregunta\":" + String(buffer[i].idPregunta) + ",\"pregunta\":\"" + buffer[i].textoPregunta + "\",\"puntajeCorrecta\":" + String(buffer[i].puntajeCorrecta) + ",\"puntajeIncorrecta\":" + String(buffer[i].puntajeIncorrecta) + ",\"opcionElegida\":\"" + buffer[i].opcionElegida + "\",\"opcionCorrecta\":\"" + buffer[i].opcionCorrecta + "\",\"fueCorrecto\":" + String(buffer[i].fueCorrecto ? "true" : "false") + "}";
