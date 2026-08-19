@@ -54,7 +54,16 @@ void CuestionarioService::_iniciarCronometro(int idCuestionario) {
 }
 
 void CuestionarioService::_pausarCronometro(int idCuestionario) {
+    if (_idCuestionarioTimer == idCuestionario) {
+        _idCuestionarioTimer = -1; // deja de sumar heartbeats hasta que se reanude
+    }
+}
 
+void CuestionarioService::_reanudarCronometro(int idCuestionario) {
+    _idCuestionarioTimer = idCuestionario;
+    // OJO: a propósito NO tocamos _tiempoAcumuladoSeg acá.
+    // Como _pausarCronometro() lo dejó intacto, retoma justo donde
+    // se había quedado antes de la pausa.
 }
 
 int CuestionarioService::_tiempoTranscurridoSeg(int idCuestionario) {
@@ -509,8 +518,6 @@ CuestionarioResult CuestionarioService::reanudar(int idCuestionario, int idUsuar
         return result;
     }
 
-    PreguntaRepository::getInstance().limpiarRespuestas(idCuestionario);
-
     DbResult db = CuestionarioRepository::getInstance()
                   .cambiarEstado(idCuestionario, "en_progreso");
     result.ok = db.ok;
@@ -519,7 +526,7 @@ CuestionarioResult CuestionarioService::reanudar(int idCuestionario, int idUsuar
         return result; 
     }
 
-    _iniciarCronometro(idCuestionario); 
+    _reanudarCronometro(idCuestionario); 
     return result;
 }
 

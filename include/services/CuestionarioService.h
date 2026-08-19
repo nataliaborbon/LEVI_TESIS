@@ -79,6 +79,7 @@ private:
 
     void _iniciarCronometro(int idCuestionario);
     void _pausarCronometro(int idCuestionario);
+    void _reanudarCronometro(int idCuestionario);
     int _tiempoTranscurridoSeg(int idCuestionario);
 
     CuestionarioService() {}
