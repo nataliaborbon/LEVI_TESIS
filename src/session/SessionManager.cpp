@@ -124,12 +124,9 @@ bool SessionManager::verificarTokenAlumno(const String& token) {
 
 bool SessionManager::heartbeatAlumno(const String& token) {
     if (!verificarTokenAlumno(token)) return false;
+    
+    // Solo mantenemos la sesión viva. ¡Ya no suma tiempo!
     _alumno.ultimaActividad = millis();
-
-    Cuestionario activo = CuestionarioRepository::getInstance().obtenerActivo();
-    if (activo.idCuestionario != 0 && activo.estado == "en_progreso") {
-        CuestionarioService::getInstance().procesarHeartbeatCronometro(activo.idCuestionario);
-    }
 
     return true;
 }

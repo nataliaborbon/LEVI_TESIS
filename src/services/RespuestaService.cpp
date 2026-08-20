@@ -11,6 +11,15 @@ SesionResult RespuestaService::iniciarSesion() {
 EstadoAlumno RespuestaService::obtenerEstado() {
     EstadoAlumno estado = _calcularEstado();
     _actualizarResumenCache(estado);
+
+    // NUEVO: El reloj solo avanza cuando el front consulta el estado (cada 2 segundos)
+    if (estado.estado == "en_progreso") {
+        Cuestionario activo = CuestionarioRepository::getInstance().obtenerActivo();
+        if (activo.idCuestionario != 0) {
+            CuestionarioService::getInstance().procesarHeartbeatCronometro(activo.idCuestionario);
+        }
+    }
+
     return estado;
 }
 
