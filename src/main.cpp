@@ -85,10 +85,10 @@ void setup()
     logHeap("Post ConfigManager (claves)");
 
     // 3. INICIALIZAR LA PANTALLA TÁCTIL (CYD) — REACTIVADA para medir su costo real
-    //logHeap("PRE ui_init()");
-    //ui_init(esPrimerInicio);
-    //logHeap("POST ui_init()");
-    //Serial.println("[Main] Pantalla inicializada.");
+    logHeap("PRE ui_init()");
+    ui_init(esPrimerInicio);
+    logHeap("POST ui_init()");
+    Serial.println("[Main] Pantalla inicializada.");
 
     // 4. SD
     logHeap("PRE initSD()");
@@ -132,10 +132,10 @@ void loop()
         _ultimoTick = ahora;
         SessionManager::getInstance().tick();
         int clientesConectados = WiFi.softAPgetStationNum();
-        //ui_update_dispositivos(clientesConectados);
+        ui_update_dispositivos(clientesConectados);
 
-        //EstadoExamenResumen resumenExamen = RespuestaService::getInstance().obtenerResumenCacheado();
-        //ui_update_examen(resumenExamen.estado, resumenExamen.tituloCuestionario, resumenExamen.numeroPregunta, resumenExamen.totalPreguntas);
+        EstadoExamenResumen resumenExamen = RespuestaService::getInstance().obtenerResumenCacheado();
+        ui_update_examen(resumenExamen.estado, resumenExamen.tituloCuestionario, resumenExamen.numeroPregunta, resumenExamen.totalPreguntas);
 
         Serial.printf(
             "[Monitor] Heap libre: %u | Heap min historico: %u | Stack loopTask libre: %u\n",
@@ -156,7 +156,7 @@ void loop()
 
     // Tareas de la interfaz gráfica
     //unsigned long t0 = micros();
-    //ui_loop();
+    ui_loop();
     //unsigned long dt = micros() - t0;
     //if (dt > 15000)
     //{

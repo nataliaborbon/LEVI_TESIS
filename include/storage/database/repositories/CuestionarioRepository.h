@@ -60,18 +60,18 @@ public:
      * @param nuevoEstado    "pendiente" | "en_progreso" | "pausado" | "finalizado"
      * @return DbResult con ok=true si tuvo éxito.
      */
-    DbResult cambiarEstado(int idCuestionario, const String& nuevoEstado);
+    DbResult cambiarEstado(int idCuestionario, const String& nuevoEstado, const String& fecha = "");
 
     /**
      * @brief Guarda el resultado final y marca el cuestionario como 'finalizado'.
      * @param idCuestionario    Id del cuestionario.
      * @param puntajeObtenido   Puntaje calculado por RespuestaService.
-     * @param fechaFinalizacion Fecha y hora de finalización (ISO 8601).
      * @param tiempoSegundos    Tiempo total que tardó el alumno.
      * @return DbResult con ok=true si tuvo éxito.
      */
-    DbResult guardarResultado(int idCuestionario, float puntajeObtenido,
-                              const String& fechaFinalizacion, int tiempoSegundos);
+    DbResult guardarResultado(int idCuestionario, float puntajeObtenido, int tiempoSegundos);
+
+    DbResult actualizarTiempoParcial(int idCuestionario, int tiempoSegundos);
 
     /**
      * @brief Elimina un cuestionario por su id.

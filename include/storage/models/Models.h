@@ -32,7 +32,7 @@ struct Usuario
 /**
  * @brief Representa un registro de la tabla cuestionarios.
  *
- * puntajeObtenido, fechaFinalizacion y tiempoSegundos permanecen
+ * puntajeObtenido ytiempoSegundos permanecen
  * en su valor por defecto hasta que el alumno finaliza el examen.
  */
 struct Cuestionario
@@ -43,7 +43,7 @@ struct Cuestionario
     float puntajeParaAprobar = 0.0f;
     String estado = "pendiente"; 
     float puntajeObtenido = 0.0f;
-    String fechaFinalizacion = "";
+    String fechaInicio = "";
     int tiempoSegundos = 0;
 };
 
@@ -127,6 +127,7 @@ struct CuestionarioResumenProfesor
     float puntajeParaAprobar = 0.0f;
     bool aprobado = false; 
     int cantPreguntas = 0;
+    String fechaInicio = "";
 };
 
 // ===========================================================================
@@ -148,6 +149,7 @@ struct CuestionarioResumenTutor
     float puntajeParaAprobar = 0.0f;
     bool aprobado = false; 
     int cantPreguntas = 0;
+    String fechaInicio = "";
     String materia = ""; 
 };
 
