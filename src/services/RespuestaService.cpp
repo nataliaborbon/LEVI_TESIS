@@ -10,7 +10,15 @@ SesionResult RespuestaService::iniciarSesion() {
 
 EstadoAlumno RespuestaService::obtenerEstado() {
     EstadoAlumno estado = _calcularEstado();
-    _actualizarResumenCache(estado);
+
+    // Si hay una finalización reciente "congelada" (ver _registrarFinalizacion),
+    // no dejamos que el cálculo normal (que acá ya da "esperando", porque el
+    // cuestionario dejó de estar en_progreso) pise el resumen que le estamos
+    // mostrando al CYD. El EstadoAlumno que se devuelve al navegador NO se ve
+    // afectado por esto: sigue siendo el cálculo real de siempre.
+    if ((long)(millis() - _finalizadoHastaMs) >= 0) {
+        _actualizarResumenCache(estado);
+    }
 
     // NUEVO: El reloj solo avanza cuando el front consulta el estado (cada 2 segundos)
     if (estado.estado == "en_progreso") {
@@ -32,11 +40,31 @@ void RespuestaService::_actualizarResumenCache(const EstadoAlumno& estado) {
     _resumenCache.tituloCuestionario[sizeof(_resumenCache.tituloCuestionario) - 1] = '\0';
 }
 
+void RespuestaService::_registrarFinalizacion(const ResultadoFinalizacion& resultado, bool aprobado, const String& titulo) {
+    strncpy(_resumenCache.estado, "finalizado", sizeof(_resumenCache.estado) - 1);
+    _resumenCache.estado[sizeof(_resumenCache.estado) - 1] = '\0';
+    strncpy(_resumenCache.tituloCuestionario, titulo.c_str(), sizeof(_resumenCache.tituloCuestionario) - 1);
+    _resumenCache.tituloCuestionario[sizeof(_resumenCache.tituloCuestionario) - 1] = '\0';
+    _resumenCache.numeroPregunta    = 0;
+    _resumenCache.totalPreguntas    = 0;
+    _resumenCache.puntajeObtenido    = resultado.puntajeObtenido;
+    _resumenCache.puntajeParaAprobar = resultado.puntajeParaAprobar;
+    _resumenCache.puntajeMaximo      = resultado.puntajeMaximo;
+    _resumenCache.tiempoSegundos     = resultado.tiempoSegundos;
+    _resumenCache.aprobado           = aprobado;
+
+    // Un poco más larga que los 10s que el CYD muestra el resultado, para
+    // darle margen al loop() de 1s y no cortar la vista a mitad de camino.
+    _finalizadoHastaMs = millis() + 15000UL;
+}
+
 EstadoAlumno RespuestaService::_calcularEstado() {
     EstadoAlumno estado;
 
+    bool hayOficialEnCurso = CuestionarioRepository::getInstance().hayUnoEnProgreso();
+
     const SesionPanel& panel = SessionManager::getInstance().getSesionPanel();
-    if (panel.activa && panel.rol == "invitado") {
+    if (!hayOficialEnCurso && panel.activa && panel.rol == "invitado") {
         const PreguntaInvitado& pregInv = SessionManager::getInstance().getPreguntaInvitado();
         if (pregInv.cargada) {
             estado.estado      = "invitado";
@@ -59,9 +87,6 @@ EstadoAlumno RespuestaService::_calcularEstado() {
         return estado;
     }
 
-    // obtenerActivo() filtra WHERE estado='en_progreso', así que si devuelve
-    // algo, ya sabemos que ese es el único estado posible. No hace falta
-    // (ni tiene sentido) volver a comparar activo.estado acá.
     Cuestionario activo = CuestionarioRepository::getInstance().obtenerActivo();
 
     if (activo.idCuestionario == 0) {
@@ -145,6 +170,7 @@ RespuestaResult RespuestaService::responder(int idPregunta, int idOpcion) {
         if (finalRes.ok) {
             result.resultado = finalRes.resultado;
             result.aprobado  = result.resultado.puntajeObtenido >= result.resultado.puntajeParaAprobar;
+            _registrarFinalizacion(result.resultado, result.aprobado, activo.titulo);
         } else {
             // No debería pasar (ya verificamos respondidas >= total arriba),
             // pero si falla no rompemos la respuesta de "responder" en sí:

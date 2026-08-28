@@ -14,6 +14,51 @@ lv_obj_t * lbl_titulo_examen;
 lv_obj_t * lbl_progreso_titulo;
 lv_obj_t * lbl_progreso_main;
 
+// --- VISTA 3: EXAMEN FINALIZADO (solo se usan dentro de este archivo) ---
+static lv_obj_t * lbl_finalizado_titulo;
+static lv_obj_t * lbl_finalizado_datos;
+static lv_obj_t * lbl_finalizado_cuenta;
+
+// Timer que hace volver a la vista "esperando" 10s después de finalizar
+static lv_timer_t * timer_regreso_examen = nullptr;
+static int segundos_restantes_examen = 0;
+
+// Formatea segundos como "MM:SS" (o "H:MM:SS" si superó la hora),
+// misma lógica que el formatearTiempo() del front web.
+static String formatearTiempoLv(float totalSegundos) {
+    long s = (long)(totalSegundos > 0 ? totalSegundos + 0.5f : 0);
+    long horas = s / 3600;
+    long minutos = (s % 3600) / 60;
+    long segundos = s % 60;
+    char buf[16];
+    if (horas > 0) {
+        snprintf(buf, sizeof(buf), "%ld:%02ld:%02ld", horas, minutos, segundos);
+    } else {
+        snprintf(buf, sizeof(buf), "%02ld:%02ld", minutos, segundos);
+    }
+    return String(buf);
+}
+
+// Oculta la vista de "finalizado" y vuelve a mostrar "esperando cuestionario"
+static void ui_examen_volver_a_esperando() {
+    lv_obj_add_flag(lbl_finalizado_titulo, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_add_flag(lbl_finalizado_datos, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_add_flag(lbl_finalizado_cuenta, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_remove_flag(lbl_esperando_examen, LV_OBJ_FLAG_HIDDEN);
+}
+
+// Tick de la cuenta regresiva (se llama 1 vez por segundo)
+static void cb_cuenta_regresiva_examen(lv_timer_t * timer) {
+    segundos_restantes_examen--;
+    if (segundos_restantes_examen <= 0) {
+        ui_examen_volver_a_esperando();
+        lv_timer_delete(timer);
+        timer_regreso_examen = nullptr;
+        return;
+    }
+    lv_label_set_text_fmt(lbl_finalizado_cuenta, "Volviendo en %d s...", segundos_restantes_examen);
+}
+
 void ui_update_usuario(const char * nombre) {
   if(lbl_usuario_main) {
     if (strlen(nombre) == 0) {
@@ -42,28 +87,80 @@ void ui_update_camara(bool lista) {
   }
 }
 
-void ui_update_examen(const char * estado, const char * titulo, int numeroPregunta, int totalPreguntas) {
+void ui_update_examen(const char * estado, const char * titulo, int numeroPregunta, int totalPreguntas,
+                       float puntajeObtenido, float puntajeParaAprobar, float puntajeMaximo,
+                       float tiempoSegundos, bool aprobado) {
     if (!lbl_esperando_examen) return;
 
     String estadoStr = estado;
+    
+    // NUEVO: Memoria interna para recordar en qué pantalla estábamos
+    static String ultimoEstado = ""; 
+
+    // 1. Si el estado actual es "finalizado" y en el tick anterior TAMBIÉN era "finalizado",
+    // abortamos inmediatamente. Esto deja que el timer de LVGL trabaje en paz y 
+    // evita redibujar la pantalla sin sentido.
+    if (estadoStr == "finalizado" && ultimoEstado == "finalizado") {
+        return; 
+    }
+
+    // 2. Solo destruimos el timer si hubo un CAMBIO real de estado
+    if (estadoStr != ultimoEstado && timer_regreso_examen) {
+        lv_timer_delete(timer_regreso_examen);
+        timer_regreso_examen = nullptr;
+    }
 
     if (estadoStr == "esperando" || estadoStr == "sin_sesion") {
         lv_obj_remove_flag(lbl_esperando_examen, LV_OBJ_FLAG_HIDDEN);
         lv_obj_add_flag(lbl_titulo_examen, LV_OBJ_FLAG_HIDDEN);
         lv_obj_add_flag(lbl_progreso_titulo, LV_OBJ_FLAG_HIDDEN);
         lv_obj_add_flag(lbl_progreso_main, LV_OBJ_FLAG_HIDDEN);
-    } else {
+        lv_obj_add_flag(lbl_finalizado_titulo, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_add_flag(lbl_finalizado_datos, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_add_flag(lbl_finalizado_cuenta, LV_OBJ_FLAG_HIDDEN);
+        
+    } else if (estadoStr == "finalizado") {
+        lv_obj_add_flag(lbl_esperando_examen, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_add_flag(lbl_titulo_examen, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_add_flag(lbl_progreso_titulo, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_add_flag(lbl_progreso_main, LV_OBJ_FLAG_HIDDEN);
+
+        lv_obj_remove_flag(lbl_finalizado_titulo, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_remove_flag(lbl_finalizado_datos, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_remove_flag(lbl_finalizado_cuenta, LV_OBJ_FLAG_HIDDEN);
+
+        lv_label_set_text_fmt(lbl_finalizado_datos,
+            "Necesario: %.0f\nObtenido: %.0f / %.0f\nTiempo: %s\n\n%s",
+            puntajeParaAprobar, puntajeObtenido, puntajeMaximo,
+            formatearTiempoLv(tiempoSegundos).c_str(),
+            aprobado ? "APROBADO" : "DESAPROBADO");
+        lv_obj_set_style_text_color(lbl_finalizado_datos,
+            aprobado ? lv_color_hex(0x2ecc71) : lv_color_hex(0xe74c3c), 0);
+
+        // Arrancamos la cuenta regresiva de 10s (ahora sí, UNA SOLA VEZ)
+        segundos_restantes_examen = 10;
+        lv_label_set_text_fmt(lbl_finalizado_cuenta, "Volviendo en %d s...", segundos_restantes_examen);
+        timer_regreso_examen = lv_timer_create(cb_cuenta_regresiva_examen, 1000, nullptr);
+        
+    } else { // "en_progreso"
         lv_obj_add_flag(lbl_esperando_examen, LV_OBJ_FLAG_HIDDEN);
         lv_obj_remove_flag(lbl_titulo_examen, LV_OBJ_FLAG_HIDDEN);
         lv_obj_remove_flag(lbl_progreso_titulo, LV_OBJ_FLAG_HIDDEN);
         lv_obj_remove_flag(lbl_progreso_main, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_add_flag(lbl_finalizado_titulo, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_add_flag(lbl_finalizado_datos, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_add_flag(lbl_finalizado_cuenta, LV_OBJ_FLAG_HIDDEN);
         if (strlen(titulo) > 0) {
             lv_label_set_text_fmt(lbl_titulo_examen, "Examen:\n\"%s\"", titulo);
         } else {
             lv_label_set_text(lbl_titulo_examen, "Examen:\n\"-\"");
         }
-        lv_label_set_text_fmt(lbl_progreso_main, "%d/%d", numeroPregunta, totalPreguntas);
+        // Esto se sigue actualizando sin problemas en cada tick
+        lv_label_set_text_fmt(lbl_progreso_main, "%d/%d", numeroPregunta, totalPreguntas); 
     }
+
+    // 3. Guardamos el estado actual para la próxima iteración del loop
+    ultimoEstado = estadoStr;
 }
 
 void ui_screen_main_init() {
@@ -81,9 +178,6 @@ void ui_screen_main_init() {
   lv_obj_set_style_text_align(etiqueta_bienvenida, LV_TEXT_ALIGN_CENTER, 0);
   lv_obj_set_style_text_font(etiqueta_bienvenida, &lv_font_montserrat_18, 0);
   lv_obj_align(etiqueta_bienvenida, LV_ALIGN_TOP_MID, 0, 15);
-
-  lv_color_t color_oscuro = lv_color_hex(0x000000);
-  lv_color_t color_claro = lv_color_hex(0xFFFFFF);
 
   lv_obj_t * qr_img = lv_image_create(tile1);
   lv_image_set_src(qr_img, &qr_levi_local);
@@ -188,4 +282,26 @@ void ui_screen_main_init() {
   lv_obj_set_style_text_font(lbl_progreso_main, fuente_datos, 0);
   lv_obj_align_to(lbl_progreso_main, lbl_progreso_titulo, LV_ALIGN_OUT_RIGHT_MID, 5, 0);
   lv_obj_add_flag(lbl_progreso_main, LV_OBJ_FLAG_HIDDEN); 
+
+  // --- VISTA 3: EXAMEN FINALIZADO ---
+  lbl_finalizado_titulo = lv_label_create(tile3);
+  lv_label_set_text(lbl_finalizado_titulo, "EXAMEN\nFINALIZADO");
+  lv_obj_set_style_text_align(lbl_finalizado_titulo, LV_TEXT_ALIGN_CENTER, 0);
+  lv_obj_set_style_text_font(lbl_finalizado_titulo, &lv_font_montserrat_18, 0);
+  lv_obj_align(lbl_finalizado_titulo, LV_ALIGN_TOP_MID, 0, 20);
+  lv_obj_add_flag(lbl_finalizado_titulo, LV_OBJ_FLAG_HIDDEN);
+
+  lbl_finalizado_datos = lv_label_create(tile3);
+  lv_label_set_text(lbl_finalizado_datos, "");
+  lv_obj_set_style_text_align(lbl_finalizado_datos, LV_TEXT_ALIGN_CENTER, 0);
+  lv_obj_set_style_text_font(lbl_finalizado_datos, fuente_datos, 0);
+  lv_obj_align(lbl_finalizado_datos, LV_ALIGN_CENTER, 0, 15);
+  lv_obj_add_flag(lbl_finalizado_datos, LV_OBJ_FLAG_HIDDEN);
+
+  lbl_finalizado_cuenta = lv_label_create(tile3);
+  lv_label_set_text(lbl_finalizado_cuenta, "");
+  lv_obj_set_style_text_font(lbl_finalizado_cuenta, fuente_datos, 0);
+  lv_obj_set_style_text_color(lbl_finalizado_cuenta, lv_color_hex(0x888888), 0);
+  lv_obj_align(lbl_finalizado_cuenta, LV_ALIGN_BOTTOM_MID, 0, -15);
+  lv_obj_add_flag(lbl_finalizado_cuenta, LV_OBJ_FLAG_HIDDEN);
 }

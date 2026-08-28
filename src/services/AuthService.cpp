@@ -1,6 +1,7 @@
 #include "services/AuthService.h"
 #include "storage/database/repositories/UsuarioRepository.h"
 #include "mbedtls/md.h"
+#include <storage/database/repositories/CuestionarioRepository.h>
 
 // ---------------------------------------------------------------------------
 // Hash y salt
@@ -84,6 +85,11 @@ AuthResult AuthService::login(const String& nombreUsuario, const String& passwor
 
 AuthResult AuthService::loginInvitado() {
     AuthResult result;
+
+    if (CuestionarioRepository::getInstance().hayUnoEnProgreso()) {
+        result.mensaje = "Hay un cuestionario del profesor en curso. Probá más tarde.";
+        return result;
+    }
 
     SesionResult sesion = SessionManager::getInstance()
                           .iniciarSesionPanel("invitado", 0, "Invitado");

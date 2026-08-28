@@ -56,10 +56,17 @@ struct RespuestaResult {
  * riesgo que un String (que internamente maneja un puntero a heap).
  */
 struct EstadoExamenResumen {
-    char estado[16]     = "esperando";
-    int  numeroPregunta = 0;
-    int  totalPreguntas = 0;
-    char tituloCuestionario[64] = "";
+    char  estado[16]     = "esperando";
+    int   numeroPregunta = 0;
+    int   totalPreguntas = 0;
+    char  tituloCuestionario[64] = "";
+
+    // Válidos solo cuando estado == "finalizado" (ver _registrarFinalizacion).
+    float puntajeObtenido    = 0;
+    float puntajeParaAprobar = 0;
+    float puntajeMaximo      = 0;
+    float tiempoSegundos     = 0;
+    bool  aprobado           = false;
 };
 
 class RespuestaService {
@@ -85,9 +92,12 @@ public:
      *   - "en_progreso" → hay cuestionario activo (o invitado), devuelve la pregunta
      *   - "esperando"   → no hay nada para mostrar
      *
-     * El resultado de finalización NO se consulta por acá: llega en la
-     * respuesta directa de responder() (ver RespuestaResult), porque es
-     * en ese momento cuando efectivamente se calcula y persiste.
+     * El resultado de finalización NO viaja en este EstadoAlumno: llega en
+     * la respuesta directa de responder() (ver RespuestaResult), porque es
+     * en ese momento cuando efectivamente se calcula y persiste. Como
+     * efecto secundario, este método también actualiza el resumen cacheado
+     * que usa el CYD (ver obtenerResumenCacheado) — salvo mientras haya una
+     * finalización reciente "congelada" ahí (ver _registrarFinalizacion).
      *
      * @return EstadoAlumno con toda la información necesaria para el frontend.
      */
@@ -100,6 +110,11 @@ public:
      * dentro de obtenerEstado()). Pensado para que main.cpp lo use en su
      * tick de 1s para alimentar la pantalla del CYD, sin generar una
      * segunda consulta a la SD/SQLite desde otra tarea.
+     *
+     * Justo después de que el alumno termina la última pregunta, este
+     * resumen queda "congelado" en estado "finalizado" (con puntaje,
+     * tiempo y si aprobó) durante unos segundos, para que el CYD tenga
+     * tiempo de mostrar el resultado antes de que vuelva a "esperando".
      *
      * @return Copia del último EstadoExamenResumen conocido.
      */
@@ -131,7 +146,23 @@ private:
     /// @brief Actualiza _resumenCache a partir de un EstadoAlumno recién calculado.
     void _actualizarResumenCache(const EstadoAlumno& estado);
 
+    /**
+     * @brief Congela el resumen cacheado en "finalizado" con los datos del
+     * resultado, durante _finalizadoHastaMs. Se llama desde responder()
+     * cuando la última pregunta se acaba de contestar.
+     *
+     * Es necesario porque, para cuando el próximo obtenerEstado() se
+     * calcule, el cuestionario ya no está "en_progreso" (obtenerActivo()
+     * ya no lo encuentra) y _calcularEstado() daría "esperando" — pisando
+     * el resultado antes de que la pantalla del CYD llegue a mostrarlo.
+     */
+    void _registrarFinalizacion(const ResultadoFinalizacion& resultado, bool aprobado, const String& titulo);
+
     EstadoExamenResumen _resumenCache;
+
+    /// millis() hasta el cual _resumenCache no debe ser pisado por el
+    /// cálculo normal de obtenerEstado() (ver _registrarFinalizacion).
+    unsigned long _finalizadoHastaMs = 0;
 };
 
 #endif // RESPUESTA_SERVICE_H

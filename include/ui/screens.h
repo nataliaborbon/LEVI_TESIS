@@ -19,6 +19,8 @@ void ui_update_dispositivos(int cantidad);
 void ui_update_camara(bool lista);
 
 // Función para actualizar el examen
-void ui_update_examen(const char * estado, const char * titulo, int numeroPregunta, int totalPreguntas);
+void ui_update_examen(const char * estado, const char * titulo, int numeroPregunta, int totalPreguntas,
+                       float puntajeObtenido = 0, float puntajeParaAprobar = 0, float puntajeMaximo = 0,
+                       float tiempoSegundos = 0, bool aprobado = false);
 
 #endif

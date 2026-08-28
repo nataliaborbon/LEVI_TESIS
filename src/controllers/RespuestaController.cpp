@@ -128,6 +128,11 @@ static void handleInvitadoPregunta(AsyncWebServerRequest* request, uint8_t* data
                                      size_t len, size_t, size_t) {
     if (!verificarSesionPanel(request, "invitado")) return;
 
+    if (CuestionarioRepository::getInstance().hayUnoEnProgreso()) {
+        enviarError(request, 409, "Hay un cuestionario del profesor en curso. Probá más tarde.");
+        return;
+    }
+
     StaticJsonDocument<512> doc;
     if (deserializeJson(doc, data, len)) {
         enviarError(request, 400, "JSON inválido.");
