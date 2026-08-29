@@ -26,6 +26,7 @@ static void handleListar(AsyncWebServerRequest* request) {
             json += "\"puntajeObtenido\":" + String(buffer[i].puntajeObtenido) + ",";
             json += "\"puntajeParaAprobar\":" + String(buffer[i].puntajeParaAprobar) + ",";
             json += "\"cantPreguntas\":" + String(buffer[i].cantPreguntas) + ",";
+            json += "\"fechaInicio\":\"" + buffer[i].fechaInicio + "\",";
             json += "\"aprobado\":" + String(buffer[i].aprobado ? "true" : "false") + "}";
         }
     } else {
@@ -39,6 +40,7 @@ static void handleListar(AsyncWebServerRequest* request) {
             json += "\"puntajeObtenido\":" + String(buffer[i].puntajeObtenido) + ",";
             json += "\"puntajeParaAprobar\":" + String(buffer[i].puntajeParaAprobar) + ",";
             json += "\"cantPreguntas\":" + String(buffer[i].cantPreguntas) + ",";
+            json += "\"fechaInicio\":\"" + buffer[i].fechaInicio + "\",";
             json += "\"aprobado\":" + String(buffer[i].aprobado ? "true" : "false") + ",";
             json += "\"materia\":\"" + buffer[i].materia + "\"}";
         }
@@ -340,9 +342,58 @@ static void handleEliminar(AsyncWebServerRequest* r, uint8_t*, size_t, size_t, s
     if (!result.ok) enviarError(r, 400, result.mensaje); else enviarOk(r, "Eliminado.");
 }
 
-static void handleIniciar(AsyncWebServerRequest* r, uint8_t*, size_t, size_t, size_t) {
-    if (!r->hasParam("id")) { enviarError(r, 400, "Falta ID"); return; }
-    CuestionarioResult result = CuestionarioService::getInstance().iniciar(r->getParam("id")->value().toInt(), SessionManager::getInstance().getSesionPanel().idUsuario);
+static void handleIniciar(AsyncWebServerRequest* r, uint8_t* data, size_t len, size_t index, size_t total) {
+    static String body;
+
+    if (index == 0) {
+        body = "";
+        body.reserve(total);
+    }
+
+    body.concat((const char*)data, len);
+
+    // Todavía faltan fragmentos
+    if (index + len < total)
+        return;
+
+    ////////////////////////
+    Serial.println("----- BODY RECIBIDO (iniciar) -----");
+    Serial.printf("len=%u total=%u\n", body.length(), total);
+    Serial.println(body);
+    ///////////////////
+    
+    
+    if (!r->hasParam("id")) { body = ""; enviarError(r, 400, "Falta ID"); return; }
+    int idCuestionario = r->getParam("id")->value().toInt();
+
+    DynamicJsonDocument doc(body.length() + 256);
+    DeserializationError err = deserializeJson(doc, body);
+    body = "";
+
+    if (err) {
+        Serial.println("----- ERROR JSON (iniciar) -----");
+        Serial.println(err.c_str());
+        enviarError(r, 400, err.c_str());
+        return;
+    }
+
+    /////////
+    Serial.print("fechaISO parseado: '");
+    Serial.print(doc["fechaISO"].as<String>());
+    Serial.println("'");
+    /////////////////////
+
+    String fechaInicio = doc["fechaISO"] | "";
+    if (fechaInicio == "") {
+        enviarError(r, 400, "Falta 'fecha'.");
+        return;
+    }
+
+    CuestionarioResult result = CuestionarioService::getInstance().iniciar(
+        idCuestionario,
+        SessionManager::getInstance().getSesionPanel().idUsuario,
+        fechaInicio
+    );
     if (!result.ok) enviarError(r, 400, result.mensaje); else enviarOk(r, "Iniciado.");
 }
 
@@ -393,8 +444,8 @@ static void handleRevision(AsyncWebServerRequest* r) {
 }
 
 void registrarCuestionarioController(AsyncWebServer& server) {
-    server.on("/api/cuestionario/revision", HTTP_GET, handleRevision);  // ← subir esta
-    server.on("/api/cuestionario/iniciar",  HTTP_PATCH, [](AsyncWebServerRequest* r){}, nullptr, handleIniciar);
+    server.on("/api/cuestionario/revision", HTTP_GET, handleRevision);  
+    server.on("/api/cuestionario/iniciar", HTTP_PATCH, [](AsyncWebServerRequest* r){}, nullptr, handleIniciar);
     server.on("/api/cuestionario/pausar",   HTTP_PATCH, [](AsyncWebServerRequest* r){}, nullptr, handlePausar);
     server.on("/api/cuestionario/reanudar", HTTP_PATCH, [](AsyncWebServerRequest* r){}, nullptr, handleReanudar);
     server.on("/api/cuestionario/finalizar",HTTP_PATCH, [](AsyncWebServerRequest* r){}, nullptr, handleFinalizar);

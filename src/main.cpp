@@ -135,9 +135,7 @@ void loop()
         ui_update_dispositivos(clientesConectados);
 
         EstadoExamenResumen resumenExamen = RespuestaService::getInstance().obtenerResumenCacheado();
-        ui_update_examen(resumenExamen.estado, resumenExamen.tituloCuestionario, resumenExamen.numeroPregunta, resumenExamen.totalPreguntas,
-                          resumenExamen.puntajeObtenido, resumenExamen.puntajeParaAprobar, resumenExamen.puntajeMaximo,
-                          resumenExamen.tiempoSegundos, resumenExamen.aprobado);
+        ui_update_examen(resumenExamen.estado, resumenExamen.tituloCuestionario, resumenExamen.numeroPregunta, resumenExamen.totalPreguntas);
 
         Serial.printf(
             "[Monitor] Heap libre: %u | Heap min historico: %u | Stack loopTask libre: %u\n",
@@ -157,11 +155,11 @@ void loop()
     }
 
     // Tareas de la interfaz gráfica
-    unsigned long t0 = micros();
+    //unsigned long t0 = micros();
     ui_loop();
-    unsigned long dt = micros() - t0;
-    if (dt > 15000)
-    {
-        Serial.printf("[Monitor] ui_loop() tardo %lu us (heap libre: %u)\n", dt, ESP.getFreeHeap());
-    }
+    //unsigned long dt = micros() - t0;
+    //if (dt > 15000)
+    //{
+    //    Serial.printf("[Monitor] ui_loop() tardo %lu us (heap libre: %u)\n", dt, ESP.getFreeHeap());
+    //}
 }

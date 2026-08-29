@@ -21,7 +21,7 @@ Cuestionario CuestionarioRepository::_filaACuestionario(sqlite3_stmt* stmt) {
                           ? (float)sqlite3_column_double(stmt, 5) : 0.0f;
 
     const char* fecha   = (const char*)sqlite3_column_text(stmt, 6);
-    c.fechaFinalizacion = fecha ? String(fecha) : "";
+    c.fechaInicio = fecha ? String(fecha) : "";
 
     c.tiempoSegundos    = sqlite3_column_type(stmt, 7) != SQLITE_NULL
                           ? sqlite3_column_int(stmt, 7) : 0;
@@ -125,22 +125,30 @@ DbResult CuestionarioRepository::actualizar(const Cuestionario& c) {
 }
 
 DbResult CuestionarioRepository::cambiarEstado(int idCuestionario,
-                                                const String& nuevoEstado) {
+                                                const String& nuevoEstado,
+                                                const String& fecha) {
     DbResult result;
     sqlite3* db = DatabaseManager::getInstance().getDB();
 
     _logHeapRepo("CAMBIAR-ESTADO pre");
 
+    const char* sql = (fecha.length() > 0)
+        ? "UPDATE cuestionarios SET estado = ?, fechaFinalizacion = ? WHERE idCuestionario = ?;"
+        : "UPDATE cuestionarios SET estado = ? WHERE idCuestionario = ?;";
+
     sqlite3_stmt* stmt;
-    if (sqlite3_prepare_v2(db,
-        "UPDATE cuestionarios SET estado = ? WHERE idCuestionario = ?;",
-        -1, &stmt, nullptr) != SQLITE_OK) {
+    if (sqlite3_prepare_v2(db, sql, -1, &stmt, nullptr) != SQLITE_OK) {
         result.mensaje = String("prepare error: ") + sqlite3_errmsg(db);
         return result;
     }
 
     sqlite3_bind_text(stmt, 1, nuevoEstado.c_str(), -1, SQLITE_TRANSIENT);
-    sqlite3_bind_int (stmt, 2, idCuestionario);
+    if (fecha.length() > 0) {
+        sqlite3_bind_text(stmt, 2, fecha.c_str(), -1, SQLITE_TRANSIENT);
+        sqlite3_bind_int (stmt, 3, idCuestionario);
+    } else {
+        sqlite3_bind_int (stmt, 2, idCuestionario);
+    }
 
     result.ok = (sqlite3_step(stmt) == SQLITE_DONE);
     if (!result.ok) result.mensaje = String("step error: ") + sqlite3_errmsg(db);
@@ -154,14 +162,13 @@ DbResult CuestionarioRepository::cambiarEstado(int idCuestionario,
 
 DbResult CuestionarioRepository::guardarResultado(int idCuestionario,
                                                    float puntajeObtenido,
-                                                   const String& fechaFinalizacion,
                                                    int tiempoSegundos) {
     DbResult result;
     sqlite3* db = DatabaseManager::getInstance().getDB();
 
     const char* sql = R"(
         UPDATE cuestionarios
-        SET puntajeObtenido = ?, fechaFinalizacion = ?, tiempoSegundos = ?,
+        SET puntajeObtenido = ?,  tiempoSegundos = ?,
             estado = 'finalizado'
         WHERE idCuestionario = ?;
     )";
@@ -173,9 +180,30 @@ DbResult CuestionarioRepository::guardarResultado(int idCuestionario,
     }
 
     sqlite3_bind_double(stmt, 1, puntajeObtenido);
-    sqlite3_bind_text  (stmt, 2, fechaFinalizacion.c_str(), -1, SQLITE_TRANSIENT);
-    sqlite3_bind_int   (stmt, 3, tiempoSegundos);
-    sqlite3_bind_int   (stmt, 4, idCuestionario);
+    sqlite3_bind_int   (stmt, 2, tiempoSegundos);
+    sqlite3_bind_int   (stmt, 3, idCuestionario);
+
+    result.ok = (sqlite3_step(stmt) == SQLITE_DONE);
+    if (!result.ok) result.mensaje = String("step error: ") + sqlite3_errmsg(db);
+
+    sqlite3_finalize(stmt);
+    return result;
+}
+
+DbResult CuestionarioRepository::actualizarTiempoParcial(int idCuestionario, int tiempoSegundos) {
+    DbResult result;
+    sqlite3* db = DatabaseManager::getInstance().getDB();
+
+    sqlite3_stmt* stmt;
+    if (sqlite3_prepare_v2(db,
+        "UPDATE cuestionarios SET tiempoSegundos = ? WHERE idCuestionario = ?;",
+        -1, &stmt, nullptr) != SQLITE_OK) {
+        result.mensaje = String("prepare error: ") + sqlite3_errmsg(db);
+        return result;
+    }
+
+    sqlite3_bind_int(stmt, 1, tiempoSegundos);
+    sqlite3_bind_int(stmt, 2, idCuestionario);
 
     result.ok = (sqlite3_step(stmt) == SQLITE_DONE);
     if (!result.ok) result.mensaje = String("step error: ") + sqlite3_errmsg(db);
@@ -260,7 +288,7 @@ int CuestionarioRepository::listarResumenProfesor(int idUsuario,
     int count = 0;
 
     const char* sql = R"(
-        SELECT idCuestionario, titulo, estado, puntajeObtenido, puntajeParaAprobar
+        SELECT idCuestionario, titulo, estado, puntajeObtenido, puntajeParaAprobar, fechaFinalizacion
         FROM cuestionarios
         WHERE idUsuario = ?
         ORDER BY idCuestionario DESC;
@@ -288,6 +316,9 @@ int CuestionarioRepository::listarResumenProfesor(int idUsuario,
         r.puntajeParaAprobar = (float)sqlite3_column_double(stmt, 4);
         r.aprobado           = (r.puntajeObtenido >= r.puntajeParaAprobar)
                                && r.estado == "finalizado";
+
+        const char* fecha    = (const char*)sqlite3_column_text(stmt, 5);
+        r.fechaInicio         = fecha ? String(fecha) : "";
     }
 
     if (rcStep != SQLITE_DONE && rcStep != SQLITE_ROW) {
@@ -321,7 +352,7 @@ int CuestionarioRepository::listarResumenTutor(CuestionarioResumenTutor* buffer,
 
     const char* sql = R"(
         SELECT idCuestionario, idUsuario, titulo, estado,
-               puntajeObtenido, puntajeParaAprobar
+               puntajeObtenido, puntajeParaAprobar, fechaFinalizacion
         FROM cuestionarios
         ORDER BY idCuestionario DESC;
     )";
@@ -347,6 +378,9 @@ int CuestionarioRepository::listarResumenTutor(CuestionarioResumenTutor* buffer,
         r.puntajeParaAprobar = (float)sqlite3_column_double(stmt, 5);
         r.aprobado           = (r.puntajeObtenido >= r.puntajeParaAprobar)
                                && r.estado == "finalizado";
+
+        const char* fecha    = (const char*)sqlite3_column_text(stmt, 6);
+        r.fechaInicio         = fecha ? String(fecha) : "";
 
         _idUsuarioTemp[count - 1] = idUsuario;
     }

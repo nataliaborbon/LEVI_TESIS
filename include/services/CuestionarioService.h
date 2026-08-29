@@ -40,11 +40,13 @@ public:
 
     CuestionarioResult editar(const Cuestionario& c, const PreguntaCompleta* preguntas, int cant);
 
-    bool obtenerCompleto(int idCuestionario, Cuestionario& c, PreguntaCompleta* bufferPreguntas, int& cantPreguntas);
+    CuestionarioResult _pausarActivoSiCorresponde(int idCuestionarioAExcluir);
+
+    bool obtenerCompleto(int idCuestionario, Cuestionario &c, PreguntaCompleta *bufferPreguntas, int &cantPreguntas);
 
     CuestionarioResult eliminar(int idCuestionario, int idUsuario);
 
-    CuestionarioResult iniciar(int idCuestionario, int idUsuario);
+    CuestionarioResult iniciar(int idCuestionario, int idUsuario, const String& fechaInicio);
 
     CuestionarioResult pausar(int idCuestionario, int idUsuario);
 

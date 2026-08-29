@@ -55,15 +55,16 @@ void CuestionarioService::_iniciarCronometro(int idCuestionario) {
 
 void CuestionarioService::_pausarCronometro(int idCuestionario) {
     if (_idCuestionarioTimer == idCuestionario) {
-        _idCuestionarioTimer = -1; // deja de sumar heartbeats hasta que se reanude
+        CuestionarioRepository::getInstance()
+            .actualizarTiempoParcial(idCuestionario, _tiempoAcumuladoSeg);
+        _idCuestionarioTimer = -1;
     }
 }
 
 void CuestionarioService::_reanudarCronometro(int idCuestionario) {
+    Cuestionario c = CuestionarioRepository::getInstance().buscarPorId(idCuestionario);
+    _tiempoAcumuladoSeg  = c.tiempoSegundos;
     _idCuestionarioTimer = idCuestionario;
-    // OJO: a propósito NO tocamos _tiempoAcumuladoSeg acá.
-    // Como _pausarCronometro() lo dejó intacto, retoma justo donde
-    // se había quedado antes de la pausa.
 }
 
 int CuestionarioService::_tiempoTranscurridoSeg(int idCuestionario) {
@@ -432,7 +433,7 @@ CuestionarioResult CuestionarioService::editar(const Cuestionario& c, const Preg
 // Iniciar
 // ---------------------------------------------------------------------------
 
-CuestionarioResult CuestionarioService::iniciar(int idCuestionario, int idUsuario) {
+CuestionarioResult CuestionarioService::iniciar(int idCuestionario, int idUsuario, const String& fechaInicio) {
     CuestionarioResult result;
 
     if (!_esDuenio(idCuestionario, idUsuario)) {
@@ -447,21 +448,20 @@ CuestionarioResult CuestionarioService::iniciar(int idCuestionario, int idUsuari
         return result;
     }
 
-    if (CuestionarioRepository::getInstance().hayUnoEnProgreso()) {
-        result.mensaje = "Ya hay un cuestionario en progreso. Pausalo o finalizalo primero.";
-        return result;
-    }
+    CuestionarioResult pausa = _pausarActivoSiCorresponde(idCuestionario);
+    if (!pausa.ok) return pausa;
 
     DbResult db = CuestionarioRepository::getInstance()
-                  .cambiarEstado(idCuestionario, "en_progreso");
+                  .cambiarEstado(idCuestionario, "en_progreso", fechaInicio);
     result.ok = db.ok;
-    if (!result.ok) { 
-        result.mensaje = db.mensaje; 
-        return result; 
+    if (!result.ok) {
+        result.mensaje = db.mensaje;
+        return result;
     }
-    _iniciarCronometro(idCuestionario); 
+    _iniciarCronometro(idCuestionario);
     return result;
 }
+
 
 // ---------------------------------------------------------------------------
 // Pausar
@@ -513,10 +513,8 @@ CuestionarioResult CuestionarioService::reanudar(int idCuestionario, int idUsuar
         return result;
     }
 
-    if (CuestionarioRepository::getInstance().hayUnoEnProgreso()) {
-        result.mensaje = "Ya hay un cuestionario en progreso. Finalizalo primero.";
-        return result;
-    }
+    CuestionarioResult pausa = _pausarActivoSiCorresponde(idCuestionario);
+    if (!pausa.ok) return pausa;
 
     DbResult db = CuestionarioRepository::getInstance()
                   .cambiarEstado(idCuestionario, "en_progreso");
@@ -541,12 +539,8 @@ void CuestionarioService::_finalizarInterno(int idCuestionario, CuestionarioResu
     float puntajeMaximo = _calcularPuntajeMaximo(idCuestionario);
     int tiempoSegundos   = _tiempoTranscurridoSeg(idCuestionario);
 
-    // TODO: fecha real. No hay RTC configurado todavía, se mantiene el
-    // placeholder que ya existía antes de este cambio.
-    String fecha = "2025-01-01T00:00:00";
-
     DbResult db = CuestionarioRepository::getInstance()
-                  .guardarResultado(idCuestionario, puntaje, fecha, tiempoSegundos);
+                  .guardarResultado(idCuestionario, puntaje, tiempoSegundos);
     result.ok = db.ok;
     if (!result.ok) {
         result.mensaje = db.mensaje;
@@ -598,6 +592,29 @@ CuestionarioResult CuestionarioService::finalizarComoAlumno(int idCuestionario) 
     }
 
     _finalizarInterno(idCuestionario, result);
+    return result;
+}
+
+// ---------------------------------------------------------------------------
+// Pausa el cuestionario en progreso (si hay uno y no es el que se está por
+// iniciar/reanudar).
+// ---------------------------------------------------------------------------
+CuestionarioResult CuestionarioService::_pausarActivoSiCorresponde(int idCuestionarioAExcluir) {
+    CuestionarioResult result;
+    result.ok = true; // por default no hay nada que pausar, no es un error
+
+    Cuestionario activo = CuestionarioRepository::getInstance().obtenerActivo();
+    if (activo.estado == "en_progreso" && activo.idCuestionario != idCuestionarioAExcluir) {
+        DbResult dbPausa = CuestionarioRepository::getInstance()
+                            .cambiarEstado(activo.idCuestionario, "pausado");
+        if (!dbPausa.ok) {
+            result.ok = false;
+            result.mensaje = "No se pudo pausar el cuestionario en progreso: " + dbPausa.mensaje;
+            return result;
+        }
+        _pausarCronometro(activo.idCuestionario);
+    }
+
     return result;
 }
 
