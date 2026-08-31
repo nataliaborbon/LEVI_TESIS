@@ -49,33 +49,86 @@ float CuestionarioService::_calcularPuntajeMaximo(int idCuestionario) {
 // ---------------------------------------------------------------------------
 
 void CuestionarioService::_iniciarCronometro(int idCuestionario) {
+    portENTER_CRITICAL(&_cronometroMux);
     _idCuestionarioTimer = idCuestionario;
     _tiempoAcumuladoSeg  = 0;
+    _tiempoAcumuladoMs   = 0;
+    _ultimoHeartbeatMs   = millis();
+    portEXIT_CRITICAL(&_cronometroMux);
 }
 
 void CuestionarioService::_pausarCronometro(int idCuestionario) {
+    // La lectura/escritura de BD queda fuera de la sección crítica (no debe
+    // ejecutarse con interrupciones deshabilitadas); solo protegemos el
+    // estado en memoria.
+    bool debePersistir = false;
+    int tiempoAPersistir = 0;
+
+    portENTER_CRITICAL(&_cronometroMux);
     if (_idCuestionarioTimer == idCuestionario) {
-        CuestionarioRepository::getInstance()
-            .actualizarTiempoParcial(idCuestionario, _tiempoAcumuladoSeg);
+        tiempoAPersistir = _tiempoAcumuladoSeg;
         _idCuestionarioTimer = -1;
+        debePersistir = true;
+    }
+    portEXIT_CRITICAL(&_cronometroMux);
+
+    if (debePersistir) {
+        CuestionarioRepository::getInstance()
+            .actualizarTiempoParcial(idCuestionario, tiempoAPersistir);
     }
 }
 
 void CuestionarioService::_reanudarCronometro(int idCuestionario) {
     Cuestionario c = CuestionarioRepository::getInstance().buscarPorId(idCuestionario);
+
+    portENTER_CRITICAL(&_cronometroMux);
     _tiempoAcumuladoSeg  = c.tiempoSegundos;
+    _tiempoAcumuladoMs   = (unsigned long)c.tiempoSegundos * 1000UL;
     _idCuestionarioTimer = idCuestionario;
+    _ultimoHeartbeatMs   = millis();
+    portEXIT_CRITICAL(&_cronometroMux);
 }
 
 int CuestionarioService::_tiempoTranscurridoSeg(int idCuestionario) {
-    if (_idCuestionarioTimer != idCuestionario) return 0;
-    return _tiempoAcumuladoSeg;
+    portENTER_CRITICAL(&_cronometroMux);
+    int seg = (_idCuestionarioTimer == idCuestionario) ? _tiempoAcumuladoSeg : 0;
+    portEXIT_CRITICAL(&_cronometroMux);
+    return seg;
 }
 
+// Antes: cada heartbeat sumaba +2s fijos, asumiendo que el front siempre
+// llega puntual cada 2s. Con microlentitudes de red eso no es cierto y el
+// cronómetro se desincroniza del tiempo real transcurrido.
+//
+// Ahora: medimos el tiempo real con millis() (en ESP32 ya está respaldado
+// por un timer de hardware, no depende de que loop() ande liviano ni de que
+// el WiFi esté ocupado) y sumamos el delta real desde el heartbeat anterior.
+// Si ese delta supera HEARTBEAT_MAX_GAP_MS lo recortamos: una demora chica
+// de red se cuenta con precisión, pero si hubo un corte de conexión real,
+// ese tiempo "muerto" no se contabiliza como tiempo de examen (se congela,
+// tal como pediste).
 void CuestionarioService::procesarHeartbeatCronometro(int idCuestionario) {
-    if (_idCuestionarioTimer == idCuestionario) {
-        _tiempoAcumuladoSeg += 2;
+    portENTER_CRITICAL(&_cronometroMux);
+
+    if (_idCuestionarioTimer != idCuestionario) {
+        portEXIT_CRITICAL(&_cronometroMux);
+        return;
     }
+
+    unsigned long ahora   = millis();
+    // Resta en unsigned long: sigue dando el delta correcto aunque millis()
+    // haya dado la vuelta (overflow, ~cada 49 días).
+    unsigned long deltaMs = ahora - _ultimoHeartbeatMs;
+
+    if (deltaMs > HEARTBEAT_MAX_GAP_MS) {
+        deltaMs = HEARTBEAT_MAX_GAP_MS;
+    }
+
+    _tiempoAcumuladoMs += deltaMs;
+    _tiempoAcumuladoSeg = (int)(_tiempoAcumuladoMs / 1000UL);
+    _ultimoHeartbeatMs  = ahora;
+
+    portEXIT_CRITICAL(&_cronometroMux);
 }
 
 // ---------------------------------------------------------------------------
@@ -552,7 +605,9 @@ void CuestionarioService::_finalizarInterno(int idCuestionario, CuestionarioResu
     result.resultado.puntajeParaAprobar = c.puntajeParaAprobar;
     result.resultado.tiempoSegundos     = tiempoSegundos;
 
+    portENTER_CRITICAL(&_cronometroMux);
     _idCuestionarioTimer = 0;
+    portEXIT_CRITICAL(&_cronometroMux);
 }
 
 CuestionarioResult CuestionarioService::finalizar(int idCuestionario, int idUsuario) {

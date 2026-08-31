@@ -79,6 +79,29 @@ private:
     int _idCuestionarioTimer = 0;
     int _tiempoAcumuladoSeg = 0;
 
+    // --- Cronómetro de alta precisión ---
+    // _tiempoAcumuladoMs es la fuente de verdad real (en ms); _tiempoAcumuladoSeg
+    // se deriva de éste en cada heartbeat y se mantiene solo porque el resto
+    // del código (BD, _tiempoTranscurridoSeg, etc.) trabaja en segundos.
+    unsigned long _tiempoAcumuladoMs = 0;
+
+    // Timestamp (millis()) del último heartbeat efectivamente contabilizado.
+    unsigned long _ultimoHeartbeatMs = 0;
+
+    // Si entre dos heartbeats pasa más que esto, el excedente NO se suma
+    // (se "congela"): así una demora chica de red se refleja con precisión,
+    // pero una desconexión real no infla el tiempo del examen.
+    static const unsigned long HEARTBEAT_MAX_GAP_MS = 4000;
+
+    // Spinlock para proteger el estado del cronómetro (_tiempoAcumuladoMs,
+    // _tiempoAcumuladoSeg, _ultimoHeartbeatMs, _idCuestionarioTimer) frente a
+    // accesos concurrentes desde distintas tareas de FreeRTOS (ej: /estado y
+    // /heartbeat resueltos en paralelo). portENTER_CRITICAL deshabilita
+    // interrupciones en el core mientras se sostiene el lock: es la forma
+    // correcta en ESP32 de darle a esta sección la prioridad más alta posible
+    // sin escribir un ISR a mano.
+    portMUX_TYPE _cronometroMux = portMUX_INITIALIZER_UNLOCKED;
+
     void _iniciarCronometro(int idCuestionario);
     void _pausarCronometro(int idCuestionario);
     void _reanudarCronometro(int idCuestionario);
