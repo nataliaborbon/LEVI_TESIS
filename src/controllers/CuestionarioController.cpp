@@ -429,10 +429,8 @@ static void handleRevision(AsyncWebServerRequest* r) {
     int cant = CuestionarioService::getInstance().obtenerRevision(idCuestionario, buffer, MAX_PREGUNTAS_POR_CUESTIONARIO);
     if (cant < 0) { enviarError(r, 404, "No encontrado"); return; }
 
-    // --- NUEVO: Buscamos el cuestionario para leer su tiempo guardado ---
     Cuestionario c = CuestionarioRepository::getInstance().buscarPorId(idCuestionario);
     
-    // --- MODIFICADO: Agregamos el tiempoSegundos al inicio del JSON ---
     String json = "{\"ok\":true,\"tiempoSegundos\":" + String(c.tiempoSegundos) + ",\"preguntas\":[";
     
     for (int i = 0; i < cant; i++) {

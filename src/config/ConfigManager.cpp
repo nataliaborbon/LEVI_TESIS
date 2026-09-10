@@ -71,6 +71,10 @@ bool ConfigManager::guardarClaveTutor(const String& clave) {
     return _guardar(KEY_CLAVE_TUTOR, clave);
 }
 
+bool ConfigManager::guardarNombreAlumno(const String& nombre) {
+    return _guardar(KEY_NOMBRE_ALUMNO, nombre);
+}
+
 // ---------------------------------------------------------------------------
 // Verificar claves
 // ---------------------------------------------------------------------------
@@ -89,9 +93,9 @@ bool ConfigManager::verificarClavePorRol(const String& clave, const String& rol)
     return false;
 }
 
-bool ConfigManager::guardarNombreAlumno(const String& nombre) {
-    return _guardar(KEY_NOMBRE_ALUMNO, nombre);
-}
+// ---------------------------------------------------------------------------
+// Obtener nombre del alumno
+// ---------------------------------------------------------------------------
 
 String ConfigManager::leerNombreAlumno() {
     return _leer(KEY_NOMBRE_ALUMNO);

@@ -11,16 +11,10 @@ SesionResult RespuestaService::iniciarSesion() {
 EstadoAlumno RespuestaService::obtenerEstado() {
     EstadoAlumno estado = _calcularEstado();
 
-    // Si hay una finalización reciente "congelada" (ver _registrarFinalizacion),
-    // no dejamos que el cálculo normal (que acá ya da "esperando", porque el
-    // cuestionario dejó de estar en_progreso) pise el resumen que le estamos
-    // mostrando al CYD. El EstadoAlumno que se devuelve al navegador NO se ve
-    // afectado por esto: sigue siendo el cálculo real de siempre.
     if ((long)(millis() - _finalizadoHastaMs) >= 0) {
         _actualizarResumenCache(estado);
     }
 
-    // NUEVO: El reloj solo avanza cuando el front consulta el estado (cada 2 segundos)
     if (estado.estado == "en_progreso") {
         Cuestionario activo = CuestionarioRepository::getInstance().obtenerActivo();
         if (activo.idCuestionario != 0) {
@@ -52,9 +46,6 @@ void RespuestaService::_registrarFinalizacion(const ResultadoFinalizacion& resul
     _resumenCache.puntajeMaximo      = resultado.puntajeMaximo;
     _resumenCache.tiempoSegundos     = resultado.tiempoSegundos;
     _resumenCache.aprobado           = aprobado;
-
-    // Un poco más larga que los 10s que el CYD muestra el resultado, para
-    // darle margen al loop() de 1s y no cortar la vista a mitad de camino.
     _finalizadoHastaMs = millis() + 15000UL;
 }
 
@@ -172,9 +163,7 @@ RespuestaResult RespuestaService::responder(int idPregunta, int idOpcion) {
             result.aprobado  = result.resultado.puntajeObtenido >= result.resultado.puntajeParaAprobar;
             _registrarFinalizacion(result.resultado, result.aprobado, activo.titulo);
         } else {
-            // No debería pasar (ya verificamos respondidas >= total arriba),
-            // pero si falla no rompemos la respuesta de "responder" en sí:
-            // el alumno ya respondió, eso ya quedó guardado.
+
             Serial.printf("[RESPONDER] Error al finalizar: %s\n", finalRes.mensaje.c_str());
         }
     }
