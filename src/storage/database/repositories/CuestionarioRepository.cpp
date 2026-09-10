@@ -64,7 +64,7 @@ Cuestionario CuestionarioRepository::buscarPorId(int idCuestionario) {
 
     const char* sql = R"(
         SELECT idCuestionario, idUsuario, titulo, puntajeParaAprobar,
-               estado, puntajeObtenido, fechaFinalizacion, tiempoSegundos
+               estado, puntajeObtenido, fechaInicio, tiempoSegundos
         FROM cuestionarios WHERE idCuestionario = ?;
     )";
 
@@ -85,7 +85,7 @@ Cuestionario CuestionarioRepository::obtenerActivo() {
 
     const char* sql = R"(
         SELECT idCuestionario, idUsuario, titulo, puntajeParaAprobar,
-               estado, puntajeObtenido, fechaFinalizacion, tiempoSegundos
+               estado, puntajeObtenido, fechaInicio, tiempoSegundos
         FROM cuestionarios WHERE estado = 'en_progreso' LIMIT 1;
     )";
 
@@ -133,7 +133,7 @@ DbResult CuestionarioRepository::cambiarEstado(int idCuestionario,
     _logHeapRepo("CAMBIAR-ESTADO pre");
 
     const char* sql = (fecha.length() > 0)
-        ? "UPDATE cuestionarios SET estado = ?, fechaFinalizacion = ? WHERE idCuestionario = ?;"
+        ? "UPDATE cuestionarios SET estado = ?, fechaInicio = ? WHERE idCuestionario = ?;"
         : "UPDATE cuestionarios SET estado = ? WHERE idCuestionario = ?;";
 
     sqlite3_stmt* stmt;
@@ -288,7 +288,7 @@ int CuestionarioRepository::listarResumenProfesor(int idUsuario,
     int count = 0;
 
     const char* sql = R"(
-        SELECT idCuestionario, titulo, estado, puntajeObtenido, puntajeParaAprobar, fechaFinalizacion
+        SELECT idCuestionario, titulo, estado, puntajeObtenido, puntajeParaAprobar, fechaInicio
         FROM cuestionarios
         WHERE idUsuario = ?
         ORDER BY idCuestionario DESC;
@@ -352,7 +352,7 @@ int CuestionarioRepository::listarResumenTutor(CuestionarioResumenTutor* buffer,
 
     const char* sql = R"(
         SELECT idCuestionario, idUsuario, titulo, estado,
-               puntajeObtenido, puntajeParaAprobar, fechaFinalizacion
+               puntajeObtenido, puntajeParaAprobar, fechaInicio
         FROM cuestionarios
         ORDER BY idCuestionario DESC;
     )";
