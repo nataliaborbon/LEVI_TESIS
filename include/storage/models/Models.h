@@ -9,12 +9,12 @@
  */
 
 // ===========================================================================
-// ENTIDADES BASE (representan tablas de la BD)
+// ENTIDADES BASE
 // ===========================================================================
 
 /**
  * @brief Representa un registro de la tabla usuarios.
- * @note El alumno no tiene registro en esta tabla.
+ * @note Ni el alumno ni los invitados tienen registro en esta tabla.
  */
 struct Usuario
 {
@@ -32,8 +32,8 @@ struct Usuario
 /**
  * @brief Representa un registro de la tabla cuestionarios.
  *
- * puntajeObtenido ytiempoSegundos permanecen
- * en su valor por defecto hasta que el alumno finaliza el examen.
+ * tiempoSegundos se actualiza solo si el el profesro pausa el exámen o si el mismo finaliza.
+ * puntajeObtenido permanece en su valor por defecto hasta que el alumno finaliza el examen.
  */
 struct Cuestionario
 {
@@ -94,7 +94,6 @@ struct UsuarioResumen
 
 // ===========================================================================
 // DTOs DE CREACIÓN
-// Se usan para recibir datos del frontend al crear/editar.
 // ===========================================================================
 
 /**
@@ -178,16 +177,11 @@ struct PreguntaRevision
 
 // ===========================================================================
 // DTO DE RESULTADO DE FINALIZACIÓN
-// Compartido entre CuestionarioService (finalizar/finalizarComoAlumno) y
-// RespuestaService (responder), para no duplicar estos campos en dos structs.
 // ===========================================================================
 
 /**
  * @brief Datos de puntaje y tiempo tras finalizar un cuestionario.
  *
- * Lo devuelve CuestionarioService al finalizar (ya sea por el profesor o
- * por el alumno al responder la última pregunta), y lo usan tanto
- * CuestionarioResult como RespuestaResult para no calcular esto dos veces.
  */
 struct ResultadoFinalizacion
 {
@@ -203,7 +197,7 @@ struct ResultadoFinalizacion
 
 /**
  * @brief Opción simplificada para mostrar al alumno.
- * @note No incluye si es correcta para no revelar la respuesta.
+ * @note No incluye si es correcta o no.
  */
 struct OpcionAlumno
 {
@@ -214,8 +208,8 @@ struct OpcionAlumno
 /**
  * @brief Pregunta activa para mostrar al alumno durante el examen.
  *
- * numeroPregunta y totalPreguntas se calculan en el Service
- * contando las preguntas respondidas y totales del cuestionario.
+ * numeroPregunta y totalPreguntas se calculan contando las preguntas respondidas 
+ * y totales del cuestionario.
  */
 struct PreguntaAlumno
 {

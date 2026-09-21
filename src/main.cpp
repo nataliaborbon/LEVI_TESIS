@@ -131,11 +131,6 @@ void loop()
     {
         _ultimoTick = ahora;
         SessionManager::getInstance().tick();
-        int clientesConectados = WiFi.softAPgetStationNum();
-        ui_update_dispositivos(clientesConectados);
-
-        EstadoExamenResumen resumenExamen = RespuestaService::getInstance().obtenerResumenCacheado();
-        ui_update_examen(resumenExamen.estado, resumenExamen.tituloCuestionario, resumenExamen.numeroPregunta, resumenExamen.totalPreguntas);
 
         Serial.printf(
             "[Monitor] Heap libre: %u | Heap min historico: %u | Stack loopTask libre: %u\n",
@@ -144,22 +139,12 @@ void loop()
             uxTaskGetStackHighWaterMark(NULL));
 
         _ticksContados++;
-        // A los 15 segundos de loop (15 ticks), la pantalla ya debería estar
-        // completamente dibujada y estabilizada. Este es el número real y
-        // comparable de "costo total de la interfaz activa", no el de
-        // ui_init() solo, que corta a mitad de camino.
         if (_ticksContados == 15 && !_checkpointHecho) {
             _checkpointHecho = true;
             logHeap(">>> CHECKPOINT ESTABLE (15s de loop) <<<");
         }
     }
 
-    // Tareas de la interfaz gráfica
-    //unsigned long t0 = micros();
-    ui_loop();
-    //unsigned long dt = micros() - t0;
-    //if (dt > 15000)
-    //{
-    //    Serial.printf("[Monitor] ui_loop() tardo %lu us (heap libre: %u)\n", dt, ESP.getFreeHeap());
-    //}
+    EstadoExamenResumen resumenExamen = RespuestaService::getInstance().obtenerResumenCacheado();
+    ui_loop(resumenExamen);
 }

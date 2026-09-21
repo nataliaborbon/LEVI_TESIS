@@ -111,8 +111,6 @@ static void handleAlumnoHeartbeat(AsyncWebServerRequest* request, uint8_t* data,
         return;
     }
 
-    // obtenerActivo() acá SÍ tiene sentido: durante el examen el
-    // cuestionario está en_progreso, que es justo lo que filtra.
     Cuestionario activo = CuestionarioRepository::getInstance().obtenerActivo();
     if (activo.idCuestionario != 0) {
         CuestionarioService::getInstance().procesarHeartbeatCronometro(activo.idCuestionario);

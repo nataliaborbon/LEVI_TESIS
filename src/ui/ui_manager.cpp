@@ -4,7 +4,7 @@
 #include <lvgl.h>
 #include "ui/screens.h"
 #include "session/SessionManager.h"
-#include "network/CameraMonitor.h"
+#include "network/NetworkMonitor.h"
 
 #define SCREEN_WIDTH 320
 #define SCREEN_HEIGHT 240
@@ -157,41 +157,54 @@ void ui_init(bool isFirstBoot)
   }
 }
 
-void ui_loop()
+void ui_loop(const EstadoExamenResumen &resumenExamen)
 {
-  static uint32_t t0;
-  static uint32_t espera;
-  const uint32_t t = millis();
+    static uint32_t t0;
+    static uint32_t espera;
+    const uint32_t t = millis();
 
-  if (t - t0 > espera)
-  {
-    espera = lv_timer_handler();
-    t0 = t;
-  }
+    if (t - t0 > espera)
+    {
+        espera = lv_timer_handler();
+        t0 = t;
+    }
 
-  static String ultimo_usuario_ui = "@@@"; // Valor imposible para forzar primera carga
-  String usuario_actual = SessionManager::getInstance().hayPanelActivo() ? 
-                          SessionManager::getInstance().getSesionPanel().nombre : "";
+    static String ultimo_usuario_ui = "@@@";
+    String usuario_actual = SessionManager::getInstance().hayPanelActivo() ?
+                            SessionManager::getInstance().getSesionPanel().nombre : "";
 
-  if (usuario_actual != ultimo_usuario_ui) {
-      ui_update_usuario(usuario_actual.c_str());
-      ultimo_usuario_ui = usuario_actual;
-  }
+    if (usuario_actual != ultimo_usuario_ui) {
+        ui_update_usuario(usuario_actual.c_str());
+        ultimo_usuario_ui = usuario_actual;
+    }
 
-  cameraMonitor_loop();
+    networkMonitor_loop();
 
-  static bool ultima_camara_ui = false;
-  static bool primera_vez_camara = true;
-  bool camara_actual = cameraMonitor_isConectada();
+    static bool ultima_camara_ui = false;
+    static bool primera_vez_camara = true;
+    bool camara_actual = networkMonitor_isCamaraConectada();
 
-  if (camara_actual != ultima_camara_ui || primera_vez_camara) {
-      ui_update_camara(camara_actual);
-      ultima_camara_ui = camara_actual;
-      primera_vez_camara = false;
-  }
+    if (camara_actual != ultima_camara_ui || primera_vez_camara) {
+        ui_update_camara(camara_actual);
+        ultima_camara_ui = camara_actual;
+        primera_vez_camara = false;
+    }
 
-  if (screen_awake && (millis() - last_touch_time > TIMEOUT_INACTIVIDAD_MS)) {
-    screen_awake = false;
-    digitalWrite(BACKLIGHT_PIN, LOW);
-  }
+    ui_update_dispositivos(networkMonitor_getCantidadDispositivos());
+    ui_update_examen(
+    resumenExamen.estado,
+    resumenExamen.tituloCuestionario,
+    resumenExamen.numeroPregunta,
+    resumenExamen.totalPreguntas,
+    resumenExamen.puntajeObtenido,
+    resumenExamen.puntajeParaAprobar,
+    resumenExamen.puntajeMaximo,
+    resumenExamen.tiempoSegundos,
+    resumenExamen.aprobado
+    );
+
+    if (screen_awake && (millis() - last_touch_time > TIMEOUT_INACTIVIDAD_MS)) {
+        screen_awake = false;
+        digitalWrite(BACKLIGHT_PIN, LOW);
+    }
 }
