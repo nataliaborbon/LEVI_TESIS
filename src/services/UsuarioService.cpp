@@ -2,6 +2,9 @@
 #include "services/AuthService.h"
 #include "config/ConfigManager.h"
 #include "storage/database/repositories/UsuarioRepository.h"
+#include <storage/database/repositories/CuestionarioRepository.h>
+#include <storage/database/repositories/PreguntaOpcionRepository.h>
+#include <config/Limites.h>
 
 // ---------------------------------------------------------------------------
 // Validación de campos
@@ -217,6 +220,25 @@ UsuarioResult UsuarioService::eliminar(int idUsuario) {
         result.ok = false;
         result.mensaje = "Usuario no encontrado en el sistema.";
         return result;
+    }
+
+    Cuestionario cuestionarios[MAX_CUESTIONARIOS_LISTADO];
+    int cant = CuestionarioRepository::getInstance()
+                .listarPorUsuario(idUsuario, cuestionarios, MAX_CUESTIONARIOS_LISTADO);
+
+    for (int i = 0; i < cant; i++) {
+        int idCuestionario = cuestionarios[i].idCuestionario;
+
+        Pregunta preguntas[MAX_PREGUNTAS_POR_CUESTIONARIO];
+        int cantPreguntas = PreguntaRepository::getInstance()
+                    .listarPorCuestionario(idCuestionario, preguntas, MAX_PREGUNTAS_POR_CUESTIONARIO);
+
+        for (int j = 0; j < cantPreguntas; j++) {
+            OpcionRepository::getInstance().eliminarPorPregunta(preguntas[j].idPregunta);
+            PreguntaRepository::getInstance().eliminar(preguntas[j].idPregunta);
+        }
+
+        CuestionarioRepository::getInstance().eliminar(idCuestionario);
     }
 
     DbResult db = UsuarioRepository::getInstance().eliminar(idUsuario);

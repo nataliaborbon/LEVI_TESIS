@@ -127,6 +127,8 @@ public:
      */
     int listarResumenTutor(CuestionarioResumenTutor* buffer, int maxSize);
 
+    int listarPorUsuario(int idUsuario, Cuestionario cuestionarios[], int maxCant);
+
 private:
     CuestionarioRepository() {}
     CuestionarioRepository(const CuestionarioRepository&)            = delete;

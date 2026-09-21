@@ -424,3 +424,25 @@ int CuestionarioRepository::listarResumenTutor(CuestionarioResumenTutor* buffer,
     _logHeapRepo("LISTAR-TUTOR post");
     return count;
 }
+
+int CuestionarioRepository::listarPorUsuario(int idUsuario, Cuestionario cuestionarios[], int maxCant) {
+    int cant = 0;
+    sqlite3* db = DatabaseManager::getInstance().getDB();
+
+    sqlite3_stmt* stmt;
+    if (sqlite3_prepare_v2(db,
+        "SELECT idCuestionario FROM cuestionarios WHERE idUsuario = ?;",
+        -1, &stmt, nullptr) != SQLITE_OK) {
+        return 0;
+    }
+
+    sqlite3_bind_int(stmt, 1, idUsuario);
+
+    while (sqlite3_step(stmt) == SQLITE_ROW && cant < maxCant) {
+        cuestionarios[cant].idCuestionario = sqlite3_column_int(stmt, 0);
+        cant++;
+    }
+
+    sqlite3_finalize(stmt);
+    return cant;
+}

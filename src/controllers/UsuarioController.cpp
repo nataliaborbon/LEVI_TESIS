@@ -62,7 +62,6 @@ static void handleEliminar(AsyncWebServerRequest *request)
     
     int idUsuario = request->getParam("id")->value().toInt();
 
-    // Llama al único servicio
     UsuarioResult result = UsuarioService::getInstance().eliminar(idUsuario);
     
     if (!result.ok) {
