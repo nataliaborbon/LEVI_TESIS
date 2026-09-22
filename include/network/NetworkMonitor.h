@@ -5,25 +5,31 @@
 
 /**
  * @file NetworkMonitor.h
- * @brief Verifica con ARP activo qué dispositivos del AP siguen conectados.
+ * @brief Cantidad de dispositivos en el AP (lista WiFi) y estado de la cámara (ping activo).
  */
 
 
 /**
- * @brief Chequea las estaciones asociadas (ARP activo), desasocia las que
- * no responden y actualiza cantidad de dispositivos y estado de la cámara.
+ * @brief Arranca la sesión de ping hacia la cámara. Llamar una vez en
+ * setup(), después de que el AP ya esté levantado.
+ */
+void networkMonitor_init();
+
+
+/**
+ * @brief Actualiza la cantidad de dispositivos conectados.
  */
 void networkMonitor_loop();
 
 
 /**
- * @brief Cantidad de dispositivos que respondieron el último chequeo ARP.
+ * @brief Cantidad de dispositivos conectados al AP (incluye a la cámara si está conectada).
  */
 int networkMonitor_getCantidadDispositivos();
 
 
 /**
- * @brief true si la cámara (CAM_IP) respondió el último chequeo.
+ * @brief true si la cámara (CAM_IP) respondió el último ping.
  */
 bool networkMonitor_isCamaraConectada();
 

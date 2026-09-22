@@ -10,6 +10,7 @@
 #include "storage/database/DatabaseManager.h"
 #include "network/WiFiAP.h"
 #include "network/WebServer.h"
+#include "network/NetworkMonitor.h"
 #include "session/SessionManager.h"
 #include "services/RespuestaService.h"  
 #include "ui/screens.h"
@@ -26,11 +27,6 @@ const int LED_ROJO = 4;
 const int LED_VERDE = 16;
 const int LED_AZUL = 17;
 
-// ---------------------------------------------------------------------------
-// Helper de diagnóstico: heap total libre + bloque contiguo más grande.
-// El total libre puede engañar; lo que de verdad importa para SQLite/JSON
-// es cuánto hay disponible como UN SOLO bloque.
-// ---------------------------------------------------------------------------
 static void logHeap(const char* etiqueta) {
     multi_heap_info_t info;
     heap_caps_get_info(&info, MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT);
@@ -54,12 +50,6 @@ void setup()
 
     logHeap("Arranque (post pines)");
 
-    // -------------------------------------------------------------------
-    // Bluetooth: si el build lo trae linkeado pero nunca se usa, el
-    // controlador BT/BLE puede estar reservando memoria del heap general
-    // sin que se note a simple vista. Lo liberamos explícitamente.
-    // -------------------------------------------------------------------
-    esp_bt_controller_mem_release(ESP_BT_MODE_BTDM);
     logHeap("Post liberar memoria BT");
 
     // 1. LittleFS
@@ -110,6 +100,11 @@ void setup()
     logHeap("PRE initWiFiAP()");
     initWiFiAP();
     logHeap("POST initWiFiAP()");
+
+    // 6.1 Monitor de red (ping a la camara)
+    logHeap("PRE networkMonitor_init()");
+    networkMonitor_init();
+    logHeap("POST networkMonitor_init()");
 
     // 7. Servidor web
     logHeap("PRE initWebServer()");
