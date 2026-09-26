@@ -77,8 +77,9 @@ void my_touchpad_read(lv_indev_t *indev, lv_indev_data_t *data)
 
     if (!screen_awake) {
       screen_awake = true;
-      digitalWrite(BACKLIGHT_PIN, HIGH); 
-      
+      digitalWrite(BACKLIGHT_PIN, HIGH);
+      networkMonitor_reanudarPingCamara();
+
       data->state = LV_INDEV_STATE_RELEASED;
       return; 
     }
@@ -169,42 +170,51 @@ void ui_loop(const EstadoExamenResumen &resumenExamen)
         t0 = t;
     }
 
-    static String ultimo_usuario_ui = "@@@";
-    String usuario_actual = SessionManager::getInstance().hayPanelActivo() ?
-                            SessionManager::getInstance().getSesionPanel().nombre : "";
+    // Mientras la pantalla está suspendida (backlight apagado por
+    // inactividad) nadie la está mirando, así que no tiene sentido
+    // seguir pidiendo/actualizando nada. Dejamos vivo únicamente
+    // lv_timer_handler() de arriba, porque es el que internamente
+    // llama a my_touchpad_read() y así puede detectar el toque que
+    // despierta la pantalla; si lo cortáramos, jamás se despertaría.
+    if (screen_awake) {
+        static String ultimo_usuario_ui = "@@@";
+        String usuario_actual = SessionManager::getInstance().hayPanelActivo() ?
+                                SessionManager::getInstance().getSesionPanel().nombre : "";
 
-    if (usuario_actual != ultimo_usuario_ui) {
-        ui_update_usuario(usuario_actual.c_str());
-        ultimo_usuario_ui = usuario_actual;
+        if (usuario_actual != ultimo_usuario_ui) {
+            ui_update_usuario(usuario_actual.c_str());
+            ultimo_usuario_ui = usuario_actual;
+        }
+
+        networkMonitor_loop();
+
+        static bool ultima_camara_ui = false;
+        static bool primera_vez_camara = true;
+        bool camara_actual = networkMonitor_isCamaraConectada();
+
+        if (camara_actual != ultima_camara_ui || primera_vez_camara) {
+            ui_update_camara(camara_actual);
+            ultima_camara_ui = camara_actual;
+            primera_vez_camara = false;
+        }
+
+        ui_update_dispositivos(networkMonitor_getCantidadDispositivos());
+        ui_update_examen(
+        resumenExamen.estado,
+        resumenExamen.tituloCuestionario,
+        resumenExamen.numeroPregunta,
+        resumenExamen.totalPreguntas,
+        resumenExamen.puntajeObtenido,
+        resumenExamen.puntajeParaAprobar,
+        resumenExamen.puntajeMaximo,
+        resumenExamen.tiempoSegundos,
+        resumenExamen.aprobado
+        );
     }
-
-    networkMonitor_loop();
-
-    static bool ultima_camara_ui = false;
-    static bool primera_vez_camara = true;
-    bool camara_actual = networkMonitor_isCamaraConectada();
-
-    if (camara_actual != ultima_camara_ui || primera_vez_camara) {
-        ui_update_camara(camara_actual);
-        ultima_camara_ui = camara_actual;
-        primera_vez_camara = false;
-    }
-
-    ui_update_dispositivos(networkMonitor_getCantidadDispositivos());
-    ui_update_examen(
-    resumenExamen.estado,
-    resumenExamen.tituloCuestionario,
-    resumenExamen.numeroPregunta,
-    resumenExamen.totalPreguntas,
-    resumenExamen.puntajeObtenido,
-    resumenExamen.puntajeParaAprobar,
-    resumenExamen.puntajeMaximo,
-    resumenExamen.tiempoSegundos,
-    resumenExamen.aprobado
-    );
 
     if (screen_awake && (millis() - last_touch_time > TIMEOUT_INACTIVIDAD_MS)) {
         screen_awake = false;
         digitalWrite(BACKLIGHT_PIN, LOW);
+        networkMonitor_detenerPingCamara();
     }
 }

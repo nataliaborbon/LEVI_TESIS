@@ -19,7 +19,10 @@ static void onPingTimeout(esp_ping_handle_t hdl, void *args)
     _camaraConectada = false;
 }
 
-void networkMonitor_init()
+// Crea la sesión de ping y la arranca. Se separa de networkMonitor_init()
+// para poder volver a llamarla cuando la pantalla se despierta, después
+// de haber sido destruida por networkMonitor_detenerPingCamara().
+static void crearYArrancarPing()
 {
     esp_ping_config_t cfg = ESP_PING_DEFAULT_CONFIG();
     cfg.target_addr.u_addr.ip4.addr = static_cast<uint32_t>(CAM_IP);
@@ -36,9 +39,40 @@ void networkMonitor_init()
     esp_ping_start(_pingCamara);
 }
 
+void networkMonitor_init()
+{
+    crearYArrancarPing();
+}
+
 void networkMonitor_loop()
 {
     _cantidadDispositivos = WiFi.softAPgetStationNum();
+}
+
+// Se llama cuando la pantalla se suspende por inactividad: el ping sigue
+// vivo en su propio task interno del stack de red aunque nadie llame a
+// networkMonitor_loop(), así que hay que destruirlo explícitamente.
+void networkMonitor_detenerPingCamara()
+{
+    if (_pingCamara == nullptr) return; // ya estaba detenido
+
+    esp_ping_stop(_pingCamara);
+    esp_ping_delete_session(_pingCamara);
+    _pingCamara = nullptr;
+
+    // Sin sesión de ping no tenemos forma de confirmar el estado real de
+    // la cámara: mejor dejarlo en "desconectada" que mostrar un dato
+    // viejo como si siguiera siendo válido.
+    _camaraConectada = false;
+}
+
+// Se llama cuando la pantalla se despierta: recrea la sesión de ping
+// destruida por networkMonitor_detenerPingCamara().
+void networkMonitor_reanudarPingCamara()
+{
+    if (_pingCamara != nullptr) return; // ya está corriendo
+
+    crearYArrancarPing();
 }
 
 int networkMonitor_getCantidadDispositivos() { return _cantidadDispositivos; }

@@ -33,5 +33,15 @@ int networkMonitor_getCantidadDispositivos();
  */
 bool networkMonitor_isCamaraConectada();
 
+/**
+ * @brief Detiene el ping hacia la cámara (se utiliza cuando la pantalla está suspendida)
+ */
+void networkMonitor_detenerPingCamara();
+
+/**
+ * @brief Reanuda el ping hacia la cámara (se utiliza cuando la pantalla se despierta)
+ */
+void networkMonitor_reanudarPingCamara();
+
 
 #endif // NETWORK_MONITOR_H
